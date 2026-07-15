@@ -111,6 +111,27 @@ $cancel-color: #909399;
       stroke: $cancel-color !important;
     }
   }
+
+  // 未流转的用户任务节点：置灰，区分「已完成 / 当前 / 驳回」
+  .pending.djs-shape {
+    .djs-visual rect {
+      fill: #f5f5f5 !important;
+      fill-opacity: 1 !important;
+      stroke: #c0c4cc !important;
+      stroke-dasharray: 4 3 !important;
+    }
+
+    .djs-visual polygon {
+      stroke: #c0c4cc !important;
+      stroke-dasharray: 4 3 !important;
+    }
+
+    .djs-visual circle {
+      fill: #f5f5f5 !important;
+      stroke: #c0c4cc !important;
+      stroke-dasharray: 4 3 !important;
+    }
+  }
 }
 
 .process-viewer .djs-tooltip-container,

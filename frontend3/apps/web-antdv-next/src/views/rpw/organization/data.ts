@@ -1,150 +1,91 @@
-import type { VbenFormApi, VbenFormSchema } from '#/adapter/form';
-import type { VxeTableGridOptions } from '#/adapter/vxe-table';
+import type { VbenFormSchema } from '#/adapter/form';
 
 import { z } from '#/adapter/form';
 
-/** 新增/修改组织的表单 */
-export function useFormSchema(formApi?: VbenFormApi): VbenFormSchema[] {
-  return [
+const NODE_TYPE_OPTIONS = [
+  { label: '组织节点（局/公司/项目）', value: 1 },
+  { label: '部门节点', value: 2 },
+];
+
+const STATUS_OPTIONS = [
+  { label: '进行中', value: 1 },
+  { label: '已完工', value: 2 },
+  { label: '已暂停', value: 3 },
+];
+
+export interface OrgFormCtx {
+  /** 节点类型：1组织 2部门 */
+  nodeType: number;
+  /** 推导后的组织级别：1局 2公司 3项目 */
+  expectedLevel: number;
+  /** 是否编辑态（编辑时节点类型不可改） */
+  isEdit: boolean;
+}
+
+/** 新增/修改组织节点的表单 schema（按节点类型/级别动态展示项目字段） */
+export function useFormSchema(ctx: OrgFormCtx): VbenFormSchema[] {
+  const schema: VbenFormSchema[] = [
     {
       component: 'Input',
       fieldName: 'id',
-      dependencies: {
-        triggerFields: [''],
-        show: () => false,
-      },
+      dependencies: { triggerFields: [''], show: () => false },
     },
     {
-      fieldName: 'orgName',
-      label: '组织名称',
       component: 'Input',
-      componentProps: {
-        maxLength: 50,
-        placeholder: '请输入组织名称',
-      },
-      rules: z.string().min(1, '组织名称不能为空').max(50),
-    },
-    {
-      fieldName: 'orgLevel',
-      label: '组织级别',
-      component: 'Select',
-      componentProps: {
-        allowClear: true,
-        placeholder: '请选择组织级别',
-        options: [
-          { label: '1局', value: 1 },
-          { label: '2公司', value: 2 },
-          { label: '3项目', value: 3 },
-        ],
-      },
-      rules: z.number().min(1, '组织级别不能为空'),
-    },
-    {
       fieldName: 'parentId',
-      label: '上级组织',
-      component: 'InputNumber',
-      componentProps: {
-        class: '!w-full',
-        min: 0,
-      },
-    },
-    {
-      fieldName: 'department',
-      label: '部门',
-      component: 'Input',
-      componentProps: {
-        maxLength: 100,
-        placeholder: '请输入部门',
-      },
-    },
-    {
-      fieldName: 'section',
-      label: '科室',
-      component: 'Input',
-      componentProps: {
-        maxLength: 100,
-        placeholder: '请输入科室',
-      },
-    },
-  ];
-}
-
-/** 列表的搜索表单 */
-export function useGridFormSchema(): VbenFormSchema[] {
-  return [
-    {
-      fieldName: 'orgLevel',
-      label: '组织级别',
-      component: 'Select',
-      componentProps: {
-        allowClear: true,
-        placeholder: '请选择组织级别',
-        options: [
-          { label: '1局', value: 1 },
-          { label: '2公司', value: 2 },
-          { label: '3项目', value: 3 },
-        ],
-      },
+      dependencies: { triggerFields: [''], show: () => false },
     },
     {
       fieldName: 'orgName',
-      label: '组织名称',
+      label: '名称',
       component: 'Input',
-      componentProps: {
-        allowClear: true,
-        placeholder: '请输入组织名称',
-      },
+      componentProps: { maxLength: 100, placeholder: '请输入名称' },
+      rules: z.string().min(1, '名称不能为空').max(100),
+    },
+    {
+      fieldName: 'nodeType',
+      label: '节点类型',
+      component: 'Select',
+      componentProps: { options: NODE_TYPE_OPTIONS, disabled: ctx.isEdit },
+      rules: z.number().min(1, '请选择节点类型'),
+    },
+    {
+      fieldName: 'sort',
+      label: '排序',
+      component: 'InputNumber',
+      componentProps: { min: 0, class: 'w-full' },
     },
   ];
-}
 
-/** 列表的字段 */
-export function useGridColumns(): VxeTableGridOptions['columns'] {
-  return [
-    {
-      field: 'orgName',
-      title: '组织名称',
-      minWidth: 160,
-    },
-    {
-      field: 'orgLevel',
-      title: '组织级别',
-      width: 120,
-      align: 'center',
-      formatter: ({ cellValue }) => {
-        if (cellValue === 1) return '1局';
-        if (cellValue === 2) return '2公司';
-        if (cellValue === 3) return '3项目';
-        return '';
+  // 项目节点（组织节点且级别为 3）额外展示项目属性
+  if (ctx.nodeType === 1 && ctx.expectedLevel === 3) {
+    schema.push(
+      {
+        fieldName: 'projectCode',
+        label: '项目编码',
+        component: 'Input',
+        componentProps: { maxLength: 50, placeholder: '请输入项目编码' },
       },
-    },
-    {
-      field: 'parentId',
-      title: '上级组织',
-      width: 120,
-      align: 'center',
-    },
-    {
-      field: 'department',
-      title: '部门',
-      minWidth: 160,
-    },
-    {
-      field: 'section',
-      title: '科室',
-      minWidth: 160,
-    },
-    {
-      field: 'createTime',
-      title: '创建时间',
-      width: 180,
-      formatter: 'formatDateTime',
-    },
-    {
-      title: '操作',
-      width: 160,
-      fixed: 'right',
-      slots: { default: 'actions' },
-    },
-  ];
+      {
+        fieldName: 'status',
+        label: '状态',
+        component: 'Select',
+        componentProps: { options: STATUS_OPTIONS, allowClear: true },
+      },
+      {
+        fieldName: 'planStartDate',
+        label: '计划开始',
+        component: 'DatePicker',
+        componentProps: { class: 'w-full', valueFormat: 'YYYY-MM-DD' },
+      },
+      {
+        fieldName: 'planEndDate',
+        label: '计划结束',
+        component: 'DatePicker',
+        componentProps: { class: 'w-full', valueFormat: 'YYYY-MM-DD' },
+      },
+    );
+  }
+
+  return schema;
 }

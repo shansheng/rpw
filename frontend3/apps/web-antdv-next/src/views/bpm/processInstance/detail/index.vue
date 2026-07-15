@@ -3,6 +3,7 @@ import type { BpmProcessInstanceApi } from '#/api/bpm/processInstance';
 import type { SystemUserApi } from '#/api/system/user';
 
 import { nextTick, onMounted, ref, shallowRef, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { Page, useVbenModal } from '@vben/common-ui';
 import {
@@ -44,9 +45,17 @@ defineOptions({ name: 'BpmProcessInstanceDetail' });
 
 const props = defineProps<{
   activityId?: string; // 流程活动编号，用于抄送查看
-  id: string; // 流程实例的编号
+  id?: string; // 流程实例的编号（backend 菜单路由不传 props，改由 route.query 兜底）
   taskId?: string; // 任务编号
 }>();
+
+// 兼容 backend 路由模式：菜单生成的路由不带 props 函数，改从 route.query 读取
+const route = useRoute();
+const processInstanceId = (props.id ??
+  (route.query.id as string | undefined)) as string;
+const taskId = props.taskId ?? (route.query.taskId as string | undefined);
+const activityId =
+  props.activityId ?? (route.query.activityId as string | undefined);
 
 const processInstanceLoading = ref(false); // 流程实例的加载中
 const processInstance = ref<BpmProcessInstanceApi.ProcessInstance>(); // 流程实例
@@ -97,9 +106,9 @@ async function getApprovalDetail() {
   processInstanceLoading.value = true;
   try {
     const param = {
-      processInstanceId: props.id,
-      activityId: props.activityId,
-      taskId: props.taskId,
+      processInstanceId: processInstanceId,
+      activityId: activityId,
+      taskId: taskId,
     };
     const data = await getApprovalDetailApi(param);
     if (!data) {
@@ -166,7 +175,7 @@ async function getProcessModelView() {
       bpmnXml: '',
     };
   }
-  const data = await getProcessInstanceBpmnModelView(props.id);
+  const data = await getProcessInstanceBpmnModelView(processInstanceId);
   if (data) {
     processModelView.value = data;
   }
@@ -202,7 +211,7 @@ const [PrintModal, printModalApi] = useVbenModal({
 
 /** 打开打印对话框 */
 function handlePrint() {
-  printModalApi.setData({ processInstanceId: props.id }).open();
+  printModalApi.setData({ processInstanceId }).open();
 }
 
 /** 监听 Tab 切换，当切换到 "record" 标签时刷新任务列表 */
@@ -244,7 +253,7 @@ onMounted(async () => {
     >
       <template #title>
         <div class="flex items-center gap-4">
-          <span class="text-gray-500">编号：{{ id || '-' }}</span>
+          <span class="text-gray-500">编号：{{ processInstanceId || '-' }}</span>
           <IconifyIcon
             icon="lucide:printer"
             class="cursor-pointer hover:text-primary"
@@ -359,14 +368,14 @@ onMounted(async () => {
               <BpmProcessInstanceTaskList
                 ref="taskListRef"
                 :loading="processInstanceLoading"
-                :id="id"
+                :id="processInstanceId"
               />
             </TabPane>
             <TabPane tab="流程评论" key="comment" class="pr-3">
               <BpmProcessInstanceCommentList
                 ref="commentListRef"
                 :loading="processInstanceLoading"
-                :id="id"
+                :id="processInstanceId"
               />
             </TabPane>
           </Tabs>

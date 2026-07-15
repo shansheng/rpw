@@ -18,6 +18,8 @@ import { formatDate, formatPast2 } from '@vben/utils';
 import { Button, Modal, Row, SpaceCompact, Table } from 'antdv-next';
 import BpmnViewer from 'bpmn-js/lib/Viewer';
 import MoveCanvasModule from 'diagram-js/lib/navigation/movecanvas';
+import flowableModdleDescriptor from './plugins/descriptor/flowableDescriptor.json';
+import flowableModdleExtension from './plugins/extension-moddle/flowable';
 
 import { DictTag } from '#/components/dict-tag';
 
@@ -158,6 +160,32 @@ const stopResizeObserver = () => {
   }
 };
 
+let visibilityObserver: IntersectionObserver | null = null;
+
+/** 启动可见性监听：容器被 Tabs 等隐藏时延迟渲染，可见后再 importXML */
+const startVisibilityObserver = () => {
+  if (!processCanvas.value || visibilityObserver) {
+    return;
+  }
+
+  visibilityObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting && props.xml && !bpmnViewer.value) {
+        importXML(props.xml);
+      }
+    });
+  });
+  visibilityObserver.observe(processCanvas.value);
+};
+
+/** 停止可见性监听 */
+const stopVisibilityObserver = () => {
+  if (visibilityObserver) {
+    visibilityObserver.disconnect();
+    visibilityObserver = null;
+  }
+};
+
 /** 启动 ResizeObserver 监听容器尺寸变化 */
 const startResizeObserver = () => {
   stopResizeObserver();
@@ -270,6 +298,14 @@ const onSelectElement = (element: any) => {
 
 /** 初始化 BPMN 视图 */
 const importXML = async (xml?: string) => {
+  // 容器尚未挂载或被 Tabs 隐藏（display:none）时，延迟到可见时再渲染
+  if (!processCanvas.value) {
+    return;
+  }
+  if (processCanvas.value.offsetWidth === 0 || processCanvas.value.offsetHeight === 0) {
+    return;
+  }
+
   // 清空流程图
   clearViewer();
 
@@ -277,8 +313,9 @@ const importXML = async (xml?: string) => {
   if (xml) {
     try {
       bpmnViewer.value = new BpmnViewer({
-        additionalModules: [MoveCanvasModule],
+        additionalModules: [MoveCanvasModule, flowableModdleExtension],
         container: processCanvas.value,
+        moddleExtensions: { flowable: flowableModdleDescriptor },
       });
       // 增加点击事件
       bpmnViewer.value.on('element.click', ({ element }: { element: any }) => {
@@ -290,7 +327,9 @@ const importXML = async (xml?: string) => {
       await bpmnViewer.value.importXML(xml);
       // 自定义成功的箭头
       addCustomDefs();
-    } catch {
+    } catch (e: any) {
+      // eslint-disable-next-line no-console
+      console.error('[ProcessViewer] importXML error:', e);
       clearViewer();
     } finally {
       isLoading.value = false;
@@ -309,11 +348,14 @@ const importXML = async (xml?: string) => {
 /** 高亮流程 */
 const setProcessStatus = (view: any) => {
   // 设置相关变量
-  if (!view || !view.processInstance) {
+  // 说明：后端 get-bpmn-model-view 返回的是「扁平」ProcessInstanceVO，
+  // status / tasks / 各高亮 id 列表均在顶层，没有嵌套 processInstance 字段，
+  // 故这里直接以整个 view 作为流程实例对象。
+  if (!view) {
     return;
   }
-  processInstance.value = view.processInstance;
-  tasks.value = view.tasks;
+  processInstance.value = view;
+  tasks.value = view.tasks || [];
   if (isLoading.value || !bpmnViewer.value) {
     return;
   }
@@ -329,7 +371,7 @@ const setProcessStatus = (view: any) => {
     return;
   }
 
-  // 已完成节点
+  // 已完成路线（连线）
   if (Array.isArray(finishedSequenceFlowActivityIds)) {
     finishedSequenceFlowActivityIds.forEach((item: any) => {
       if (item !== null) {
@@ -342,20 +384,21 @@ const setProcessStatus = (view: any) => {
       }
     });
   }
+  // 已完成节点
   if (Array.isArray(finishedTaskActivityIds)) {
     finishedTaskActivityIds.forEach((item: any) =>
       canvas.addMarker(item, 'success'),
     );
   }
 
-  // 未完成节点
+  // 当前进行中节点
   if (Array.isArray(unfinishedTaskActivityIds)) {
     unfinishedTaskActivityIds.forEach((item: any) =>
       canvas.addMarker(item, 'primary'),
     );
   }
 
-  // 被拒绝节点
+  // 被驳回节点
   if (Array.isArray(rejectedTaskActivityIds)) {
     rejectedTaskActivityIds.forEach((item: any) => {
       if (item !== null) {
@@ -363,6 +406,20 @@ const setProcessStatus = (view: any) => {
       }
     });
   }
+
+  // 未流转的用户任务节点：置灰，与「已完成 / 当前 / 驳回」区分
+  const handled = new Set<string>([
+    ...(finishedTaskActivityIds || []),
+    ...(unfinishedTaskActivityIds || []),
+    ...(rejectedTaskActivityIds || []),
+  ]);
+  elementRegistry
+    .filter((element: any) => element.type === 'bpmn:UserTask')
+    .forEach((element: any) => {
+      if (!handled.has(element.id)) {
+        canvas.addMarker(element.id, 'pending');
+      }
+    });
 
   // 特殊：处理 end 节点的高亮。因为 end 在拒绝、取消时，被后端计算成了 finishedTaskActivityIds 里
   if (
@@ -402,19 +459,21 @@ watch(
 
 /** mounted：初始化 */
 onMounted(() => {
+  startVisibilityObserver();
   importXML(props.xml || '');
   setProcessStatus(props.view);
 });
 
 /** unmount：销毁 */
 onBeforeUnmount(() => {
+  stopVisibilityObserver();
   clearViewer();
 });
 </script>
 
 <template>
   <div class="process-viewer">
-    <div style="height: 100%" ref="processCanvas" v-show="!isLoading"></div>
+    <div style="height: 100%" ref="processCanvas"></div>
     <!-- 自定义箭头样式，用于已完成状态下流程连线箭头 -->
     <defs ref="customDefs">
       <marker
@@ -514,6 +573,48 @@ onBeforeUnmount(() => {
           <Button :icon="h(UndoOutlined)" @click="processReZoom()" />
         </SpaceCompact>
       </Row>
+    </div>
+
+    <!-- 流程状态图例 -->
+    <div
+      class="process-status-legend"
+      style="
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 6px 10px;
+        font-size: 12px;
+        line-height: 18px;
+        color: #555;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #eee;
+        border-radius: 4px;
+      "
+    >
+      <span style="display: inline-flex; align-items: center; gap: 4px">
+        <i style="width: 12px; height: 12px; border-radius: 2px; background: rgba(78, 184, 25, 0.15); border: 1.5px solid #4eb819; display: inline-block"></i>
+        已完成
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 4px">
+        <i style="width: 12px; height: 12px; border-radius: 2px; background: rgba(64, 158, 255, 0.15); border: 1.5px solid #409eff; display: inline-block"></i>
+        当前环节
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 4px">
+        <i style="width: 12px; height: 12px; border-radius: 2px; background: #f5f5f5; border: 1.5px dashed #c0c4cc; display: inline-block"></i>
+        未流转
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 4px">
+        <i style="width: 12px; height: 12px; border-radius: 2px; background: rgba(245, 108, 108, 0.15); border: 1.5px solid #f56c6c; display: inline-block"></i>
+        已驳回
+      </span>
+      <span style="display: inline-flex; align-items: center; gap: 4px">
+        <i style="width: 12px; height: 12px; border-radius: 2px; background: rgba(144, 147, 153, 0.15); border: 1.5px solid #909399; display: inline-block"></i>
+        已取消
+      </span>
     </div>
   </div>
 </template>

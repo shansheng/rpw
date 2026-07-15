@@ -5,10 +5,9 @@ import type { SystemUserApi } from '#/api/system/user';
 import { CommonStatusEnum, DICT_TYPE } from '@vben/constants';
 import { getDictOptions } from '@vben/hooks';
 import { $t } from '@vben/locales';
-import { handleTree } from '@vben/utils';
 
 import { z } from '#/adapter/form';
-import { getDeptList } from '#/api/system/dept';
+import { getOrganizationTree } from '#/api/rpw/organization';
 import { getSimplePostList } from '#/api/system/post';
 import { getSimpleRoleList } from '#/api/system/role';
 import { getRangePickerDefaultProps } from '#/utils';
@@ -54,17 +53,14 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       fieldName: 'deptId',
-      label: '归属部门',
+      label: '归属组织',
       component: 'ApiTreeSelect',
       componentProps: {
-        api: async () => {
-          const data = await getDeptList();
-          return handleTree(data);
-        },
-        labelField: 'name',
+        api: getOrganizationTree,
+        labelField: 'orgName',
         valueField: 'id',
         childrenField: 'children',
-        placeholder: '请选择归属部门',
+        placeholder: '请选择归属组织',
         treeDefaultExpandAll: true,
       },
     },
@@ -308,6 +304,7 @@ export function useGridColumns(
     row: SystemUserApi.User,
   ) => PromiseLike<boolean | undefined>,
   roleNameOf?: (roleIds?: number[]) => string,
+  orgNameOf?: (orgId?: number) => string,
 ): VxeTableGridOptions['columns'] {
   return [
     { type: 'checkbox', width: 40 },
@@ -327,9 +324,10 @@ export function useGridColumns(
       minWidth: 120,
     },
     {
-      field: 'deptName',
-      title: '部门',
+      field: 'deptId',
+      title: '归属组织',
       minWidth: 120,
+      formatter: ({ row }: any) => orgNameOf?.(row.deptId) ?? '-',
     },
     {
       field: 'roleIds',

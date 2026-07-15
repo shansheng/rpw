@@ -1,37 +1,27 @@
 <script lang="ts" setup>
-import type { TransferDirection, TransferKey } from 'antdv-next';
-
-import type { SystemDeptApi } from '#/api/system/dept';
+import type { OrganizationApi } from '#/api/rpw/organization';
 import type { SystemUserApi } from '#/api/system/user';
 
 import { computed, ref } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
-import { handleTree } from '@vben/utils';
+import { IconifyIcon } from '@vben/icons';
 
 import {
+  Avatar,
   Button,
+  Card,
   Col,
+  Empty,
   Input,
   message,
   Pagination,
   Row,
-  Transfer,
-  Tree,
 } from 'antdv-next';
 
-import { getSimpleDeptList } from '#/api/system/dept';
+import { getOrganizationTree } from '#/api/rpw/organization';
 import { getUserPage } from '#/api/system/user';
-
-type Key = number | string;
-
-/** 部门树节点接口 */
-interface DeptTreeNode {
-  key: string;
-  title: string;
-  children?: DeptTreeNode[];
-  name: string;
-}
+import OrgTree from './org-tree.vue';
 
 interface Props {
   cancelText?: string;
@@ -58,16 +48,57 @@ const emit = defineEmits<{
   'update:value': [value: number[]];
 }>();
 
-// 部门树数据
-const deptTree = ref<any[]>([]);
-const deptList = ref<SystemDeptApi.Dept[]>([]);
-const expandedKeys = ref<Key[]>([]);
-const selectedDeptId = ref<number>();
-const deptSearchKeys = ref('');
+// ===== 左侧组织树 =====
+interface OrgTreeNode {
+  key: number;
+  title: string;
+  raw: OrganizationApi.Organization;
+  children?: OrgTreeNode[];
+}
 
-// 用户数据管理
-const userList = ref<SystemUserApi.User[]>([]); // 存储所有已知用户
-const selectedUserIds = ref<string[]>([]);
+const orgTreeData = ref<OrgTreeNode[]>([]);
+
+function orgTypeTag(n: OrganizationApi.Organization): string {
+  if (n.nodeType === 2) return '【部门】';
+  return { 1: '【局】', 2: '【公司】', 3: '【项目】' }[n.orgLevel ?? 0] ?? '';
+}
+
+function toOrgTree(nodes: OrganizationApi.Organization[]): OrgTreeNode[] {
+  return nodes.map((n) => ({
+    key: n.id!,
+    title: `${orgTypeTag(n)} ${n.orgName}`,
+    raw: n,
+    children: n.children?.length ? toOrgTree(n.children) : undefined,
+  }));
+}
+
+const selectedOrgId = ref<number | undefined>(undefined);
+
+// ===== 用户数据 =====
+const userList = ref<SystemUserApi.User[]>([]); // 已知用户缓存（含已选）
+const selectedUserIds = ref<string[]>([]); // 已选用户 ID（字符串）
+
+const leftListState = ref({
+  searchValue: '',
+  dataSource: [] as SystemUserApi.User[],
+  pagination: { current: 1, pageSize: 10, total: 0 },
+});
+
+const rightListState = ref({
+  searchValue: '',
+  dataSource: [] as SystemUserApi.User[],
+  pagination: { current: 1, pageSize: 10, total: 0 },
+});
+
+// 左侧展示：剔除已选中的用户，避免与右侧重复
+const leftDisplay = computed(() =>
+  leftListState.value.dataSource.filter(
+    (u) => !selectedUserIds.value.includes(String(u.id)),
+  ),
+);
+
+// 右侧展示：已选中用户（按搜索 + 分页）
+const rightDisplay = computed(() => rightListState.value.dataSource);
 
 const [Modal, modalApi] = useVbenModal({
   onCancel: handleCancel,
@@ -77,44 +108,35 @@ const [Modal, modalApi] = useVbenModal({
       resetData();
       return;
     }
-    // 加载数据
     const data = modalApi.getData();
     if (!data) {
       return;
     }
     modalApi.lock();
     try {
-      // 加载部门数据
-      const deptData = await getSimpleDeptList();
-      deptList.value = deptData;
-      const treeData = handleTree(deptData);
-      deptTree.value = treeData.map((node) => processDeptNode(node));
-      expandedKeys.value = deptTree.value.map((node) => node.key);
+      // 组织树
+      orgTreeData.value = toOrgTree(await getOrganizationTree());
 
-      // 加载初始用户数据
+      // 待选用户首页
       await loadUserData(1, leftListState.value.pagination.pageSize);
 
-      // 设置已选用户
+      // 回显已选用户
       if (data.userIds?.length) {
         selectedUserIds.value = data.userIds.map(String);
-        // 加载已选用户的完整信息  TODO   目前接口暂不支持 多个用户ID 查询， 需要后端支持
         const { list } = await getUserPage({
           pageNo: 1,
-          pageSize: 100, // 临时使用固定值确保能加载所有已选用户
+          pageSize: 100,
           userIds: data.userIds,
         });
-        // 使用 Map 来去重，以用户 ID 为 key
-        const userMap = new Map(userList.value.map((user) => [user.id, user]));
-        list.forEach((user) => {
-          if (!userMap.has(user.id)) {
-            userMap.set(user.id, user);
+        const userMap = new Map(userList.value.map((u) => [u.id, u]));
+        list.forEach((u) => {
+          if (!userMap.has(u.id)) {
+            userMap.set(u.id, u);
           }
         });
         userList.value = [...userMap.values()];
         updateRightListData();
       }
-
-      modalApi.open();
     } finally {
       modalApi.unlock();
     }
@@ -122,243 +144,122 @@ const [Modal, modalApi] = useVbenModal({
   destroyOnClose: true,
 });
 
-const leftListState = ref({
-  searchValue: '',
-  dataSource: [] as SystemUserApi.User[],
-  pagination: {
-    current: 1,
-    pageSize: 10,
-    total: 0,
-  },
-}); // 左侧列表状态
-
-const rightListState = ref({
-  searchValue: '',
-  dataSource: [] as SystemUserApi.User[],
-  pagination: {
-    current: 1,
-    pageSize: 10,
-    total: 0,
-  },
-}); // 右侧列表状态
-
-const transferDataSource = computed(() => {
-  return [
-    ...leftListState.value.dataSource,
-    ...rightListState.value.dataSource,
-  ];
-}); // 计算属性：Transfer 数据源
-
-const filteredDeptTree = computed(() => {
-  if (!deptSearchKeys.value) return deptTree.value;
-
-  const filterNode = (node: any, depth = 0): any => {
-    // 添加深度限制，防止过深的递归导致爆栈
-    if (depth > 100) return null;
-
-    // 按部门名称搜索
-    const name = node?.name?.toLowerCase();
-    const search = deptSearchKeys.value.toLowerCase();
-
-    // 如果当前节点匹配，直接返回节点，不处理子节点
-    if (name?.includes(search)) {
-      return {
-        ...node,
-        children: node.children,
-      };
-    }
-
-    // 如果当前节点不匹配，检查子节点
-    if (node.children) {
-      const filteredChildren = node.children
-        .map((child: any) => filterNode(child, depth + 1))
-        .filter(Boolean);
-
-      if (filteredChildren.length > 0) {
-        return {
-          ...node,
-          children: filteredChildren,
-        };
-      }
-    }
-
-    return null;
-  };
-
-  return deptTree.value.map((node: any) => filterNode(node)).filter(Boolean);
-}); // 过滤部门树数据
-
-/** 加载用户数据 */
+/** 加载待选用户（左侧列表） */
 async function loadUserData(pageNo: number, pageSize: number) {
-  try {
-    const { list, total } = await getUserPage({
-      pageNo,
-      pageSize,
-      deptId: selectedDeptId.value,
-      username: leftListState.value.searchValue || undefined,
-    });
+  const { list, total } = await getUserPage({
+    pageNo,
+    pageSize,
+    deptId: selectedOrgId.value,
+    username: leftListState.value.searchValue || undefined,
+  });
+  leftListState.value.dataSource = list;
+  leftListState.value.pagination.total = total;
+  leftListState.value.pagination.current = pageNo;
+  leftListState.value.pagination.pageSize = pageSize;
 
-    leftListState.value.dataSource = list;
-    leftListState.value.pagination.total = total;
-    leftListState.value.pagination.current = pageNo;
-    leftListState.value.pagination.pageSize = pageSize;
-
-    // 更新用户列表缓存
-    const newUsers = list.filter(
-      (user) => !userList.value.some((u) => u.id === user.id),
-    );
-    if (newUsers.length > 0) {
-      userList.value.push(...newUsers);
-    }
-  } finally {
-    //
-  }
-}
-
-/** 更新右侧列表数据 */
-function updateRightListData() {
-  // 使用 Set 来去重选中的用户 ID
-  const uniqueSelectedIds = new Set(selectedUserIds.value);
-
-  // 获取选中的用户，确保不重复
-  const selectedUsers = userList.value.filter((user) =>
-    uniqueSelectedIds.has(String(user.id)),
+  const newUsers = list.filter(
+    (u) => !userList.value.some((x) => x.id === u.id),
   );
-
-  // 应用搜索过滤
-  const filteredUsers = rightListState.value.searchValue
-    ? selectedUsers.filter((user) =>
-        user.nickname
-          .toLowerCase()
-          .includes(rightListState.value.searchValue.toLowerCase()),
-      )
-    : selectedUsers;
-
-  // 更新总数（使用 Set 确保唯一性）
-  rightListState.value.pagination.total = new Set(
-    filteredUsers.map((user) => user.id),
-  ).size;
-
-  // 应用分页
-  const { current, pageSize } = rightListState.value.pagination;
-  const startIndex = (current - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-
-  rightListState.value.dataSource = filteredUsers.slice(startIndex, endIndex);
-}
-
-/** 处理左侧分页变化 */
-async function handleLeftPaginationChange(page: number, pageSize: number) {
-  await loadUserData(page, pageSize);
-}
-
-/** 处理右侧分页变化 */
-function handleRightPaginationChange(page: number, pageSize: number) {
-  rightListState.value.pagination.current = page;
-  rightListState.value.pagination.pageSize = pageSize;
-  updateRightListData();
-}
-
-/** 处理用户搜索 */
-async function handleUserSearch(direction: TransferDirection, value: string) {
-  if (direction === 'left') {
-    leftListState.value.searchValue = value;
-    leftListState.value.pagination.current = 1;
-    await loadUserData(1, leftListState.value.pagination.pageSize);
-  } else {
-    rightListState.value.searchValue = value;
-    rightListState.value.pagination.current = 1;
-    updateRightListData();
+  if (newUsers.length > 0) {
+    userList.value.push(...newUsers);
   }
 }
 
-/** 处理用户选择变化 */
-function handleUserChange(targetKeys: TransferKey[]) {
-  // 使用 Set 来去重选中的用户ID
-  selectedUserIds.value = [...new Set(targetKeys.map(String))];
+/** 根据已选 + 搜索 + 分页，刷新右侧列表 */
+function updateRightListData() {
+  const uniqueIds = [...new Set(selectedUserIds.value)];
+  let selected = userList.value.filter((u) =>
+    uniqueIds.includes(String(u.id)),
+  );
+  if (rightListState.value.searchValue) {
+    const kw = rightListState.value.searchValue.toLowerCase();
+    selected = selected.filter((u) =>
+      (u.nickname ?? u.username).toLowerCase().includes(kw),
+    );
+  }
+  rightListState.value.pagination.total = selected.length;
+  const { current, pageSize } = rightListState.value.pagination;
+  const start = (current - 1) * pageSize;
+  rightListState.value.dataSource = selected.slice(start, start + pageSize);
+}
+
+function isSelected(u: SystemUserApi.User): boolean {
+  return selectedUserIds.value.includes(String(u.id));
+}
+
+/** 左侧点击：切换选中 */
+function toggleSelect(u: SystemUserApi.User) {
+  if (!u.id && u.id !== 0) return;
+  const id = String(u.id);
+  if (selectedUserIds.value.includes(id)) {
+    selectedUserIds.value = selectedUserIds.value.filter((x) => x !== id);
+  } else {
+    selectedUserIds.value = [...selectedUserIds.value, id];
+  }
   emit('update:value', selectedUserIds.value.map(Number));
   updateRightListData();
 }
 
-/** 重置数据 */
+/** 右侧点击 X：移除选中 */
+function removeSelect(u: SystemUserApi.User) {
+  if (!u.id && u.id !== 0) return;
+  const id = String(u.id);
+  selectedUserIds.value = selectedUserIds.value.filter((x) => x !== id);
+  emit('update:value', selectedUserIds.value.map(Number));
+  updateRightListData();
+}
+
+/** 组织树节点点击 → 按组织过滤待选用户 */
+function handleOrgSelect(org?: OrganizationApi.Organization) {
+  selectedOrgId.value = org?.id;
+  leftListState.value.pagination.current = 1;
+  loadUserData(1, leftListState.value.pagination.pageSize);
+}
+
+/** 左侧搜索 */
+function onLeftSearch(value: string) {
+  leftListState.value.searchValue = value;
+  leftListState.value.pagination.current = 1;
+  loadUserData(1, leftListState.value.pagination.pageSize);
+}
+
+/** 左侧分页 */
+function onLeftPage({ current, pageSize }: { current: number; pageSize: number }) {
+  loadUserData(current, pageSize);
+}
+
+/** 右侧搜索 */
+function onRightSearch(value: string) {
+  rightListState.value.searchValue = value;
+  rightListState.value.pagination.current = 1;
+  updateRightListData();
+}
+
+/** 右侧分页 */
+function onRightPage({ current, pageSize }: { current: number; pageSize: number }) {
+  rightListState.value.pagination.current = current;
+  rightListState.value.pagination.pageSize = pageSize;
+  updateRightListData();
+}
+
+/** 重置 */
 function resetData() {
   userList.value = [];
   selectedUserIds.value = [];
-
-  // 取消部门选中
-  selectedDeptId.value = undefined;
-  // 取消选中的用户
-  selectedUserIds.value = [];
-
+  selectedOrgId.value = undefined;
   leftListState.value = {
     searchValue: '',
     dataSource: [],
-    pagination: {
-      current: 1,
-      pageSize: 10,
-      total: 0,
-    },
+    pagination: { current: 1, pageSize: 10, total: 0 },
   };
-
   rightListState.value = {
     searchValue: '',
     dataSource: [],
-    pagination: {
-      current: 1,
-      pageSize: 10,
-      total: 0,
-    },
+    pagination: { current: 1, pageSize: 10, total: 0 },
   };
 }
 
-// TODO   后端接口目前仅支持  username 检索， 筛选条件需要跟后端请求参数保持一致。
-function filterOption(inputValue: string, option: any) {
-  return option.username.toLowerCase().includes(inputValue.toLowerCase());
-}
-
-/** 处理部门树展开/折叠 */
-function handleExpand(keys: Key[]) {
-  expandedKeys.value = keys;
-}
-
-/** 处理部门搜索 */
-function handleDeptSearch(value: string) {
-  deptSearchKeys.value = value;
-
-  // 如果有搜索结果，自动展开所有节点
-  if (value) {
-    const getAllKeys = (nodes: any[]): string[] => {
-      const keys: string[] = [];
-      for (const node of nodes) {
-        keys.push(node.key);
-        if (node.children) {
-          keys.push(...getAllKeys(node.children));
-        }
-      }
-      return keys;
-    };
-    expandedKeys.value = getAllKeys(deptTree.value);
-  } else {
-    // 清空搜索时，只展开第一级节点
-    expandedKeys.value = deptTree.value.map((node) => node.key);
-  }
-}
-
-/** 处理部门选择 */
-async function handleDeptSelect(selectedKeys: Key[], _info: any) {
-  // 更新选中的部门 ID
-  const newDeptId =
-    selectedKeys.length > 0 ? Number(selectedKeys[0]) : undefined;
-  selectedDeptId.value =
-    newDeptId === selectedDeptId.value ? undefined : newDeptId;
-
-  // 重置分页并加载数据
-  const { pageSize } = leftListState.value.pagination;
-  leftListState.value.pagination.current = 1;
-  await loadUserData(1, pageSize);
-}
-
-/** 确认选择 */
+/** 确认 */
 function handleConfirm() {
   if (selectedUserIds.value.length === 0) {
     message.warning('请选择用户');
@@ -366,107 +267,165 @@ function handleConfirm() {
   }
   emit(
     'confirm',
-    userList.value.filter((user) =>
-      selectedUserIds.value.includes(String(user.id)),
+    userList.value.filter((u) =>
+      selectedUserIds.value.includes(String(u.id)),
     ),
   );
   modalApi.close();
 }
 
-/** 取消选择 */
+/** 取消 */
 function handleCancel() {
   emit('cancel');
   modalApi.close();
-  // 确保在动画结束后再重置数据
-  setTimeout(() => {
-    resetData();
-  }, 300);
 }
 
-/** 关闭弹窗 */
+/** 关闭完成 */
 function handleClosed() {
   emit('closed');
   resetData();
 }
-
-/** 递归处理部门树节点 */
-function processDeptNode(node: any): DeptTreeNode {
-  return {
-    key: String(node.id),
-    title: `${node.name} (${node.id})`,
-    name: node.name,
-    children: node.children?.map((child: any) => processDeptNode(child)),
-  };
-}
 </script>
 
 <template>
-  <Modal class="!w-[90vw]" key="user-select-modal" :title="title">
-    <Row :gutter="[16, 16]">
-      <Col :span="6">
-        <div class="h-[500px] overflow-auto rounded border">
-          <div class="border-b p-2">
+  <Modal class="!w-[900px] max-w-[94vw]" :title="title">
+    <Row :gutter="[12, 12]" class="h-[560px]">
+      <!-- 左列：组织树 -->
+      <Col :span="10" class="h-full">
+        <Card
+          class="flex h-full flex-col overflow-hidden"
+          :body-style="{ padding: '8px' }"
+        >
+          <div class="mb-2 shrink-0 font-semibold">组织</div>
+          <div class="min-h-0 flex-1 overflow-auto">
+            <OrgTree :tree-data="orgTreeData" @select="handleOrgSelect" />
+          </div>
+        </Card>
+      </Col>
+
+      <!-- 中列：待选择人员 -->
+      <Col :span="7" class="h-full">
+        <Card
+          class="flex h-full flex-col overflow-hidden"
+          :body-style="{ padding: '8px' }"
+        >
+          <div class="mb-2 flex shrink-0 items-center gap-2">
+            <span class="shrink-0 whitespace-nowrap font-semibold">待选择</span>
+            <span class="shrink-0 whitespace-nowrap text-xs text-gray-400">
+              ({{ leftListState.pagination.total }} 人)
+            </span>
             <Input
-              v-model:value="deptSearchKeys"
-              placeholder="搜索部门"
+              :model-value="leftListState.searchValue"
+              placeholder="搜索用户名"
               allow-clear
-              @input="
-                (e: Event) =>
-                  handleDeptSearch((e.target as HTMLInputElement)?.value ?? '')
-              "
+              size="small"
+              class="ml-auto w-1/2"
+              @update:value="onLeftSearch"
             />
           </div>
-          <Tree
-            :tree-data="filteredDeptTree"
-            :expanded-keys="expandedKeys"
-            :selected-keys="selectedDeptId ? [String(selectedDeptId)] : []"
-            @select="handleDeptSelect"
-            @expand="handleExpand"
-          />
-        </div>
+          <div class="min-h-0 flex-1 overflow-auto">
+            <div
+              v-for="u in leftDisplay"
+              :key="u.id"
+              class="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+              @click="toggleSelect(u)"
+            >
+              <Avatar v-if="u.avatar" class="size-7" :src="u.avatar" />
+              <Avatar v-else class="size-7">
+                {{ (u.nickname || u.username)?.substring(0, 1) }}
+              </Avatar>
+              <div class="min-w-0 flex-1">
+                <div class="truncate">{{ u.nickname }}</div>
+                <div class="truncate text-xs text-gray-400">
+                  {{ u.username
+                  }}<span v-if="u.mobile"> · {{ u.mobile }}</span>
+                </div>
+              </div>
+              <IconifyIcon
+                v-if="isSelected(u)"
+                icon="lucide:check"
+                class="size-4 shrink-0 text-primary"
+              />
+            </div>
+            <Empty
+              v-if="!leftDisplay.length"
+              description="暂无用户"
+            />
+          </div>
+          <div class="mt-2 shrink-0 text-right">
+            <Pagination
+              size="small"
+              :current="leftListState.pagination.current"
+              :page-size="leftListState.pagination.pageSize"
+              :total="leftListState.pagination.total"
+              :show-size-changer="true"
+              :show-total="(t: number) => `共 ${t} 条`"
+              @change="onLeftPage"
+            />
+          </div>
+        </Card>
       </Col>
-      <Col :span="18">
-        <Transfer
-          :row-key="(record) => String(record.id)"
-          :data-source="transferDataSource"
-          v-model:target-keys="selectedUserIds"
-          :titles="['未选', '已选']"
-          :show-search="true"
-          :show-select-all="true"
-          :filter-option="filterOption"
-          @change="handleUserChange"
-          @search="handleUserSearch"
+
+      <!-- 右列：已选中人员 -->
+      <Col :span="7" class="h-full">
+        <Card
+          class="flex h-full flex-col overflow-hidden"
+          :body-style="{ padding: '8px' }"
         >
-          <template #render="item">
-            <span>{{ item?.nickname }} ({{ item?.username }})</span>
-          </template>
-
-          <template #footer="{ info }">
-            <div v-if="info?.direction === 'left'">
-              <Pagination
-                v-model:current="leftListState.pagination.current"
-                v-model:page-size="leftListState.pagination.pageSize"
-                :total="leftListState.pagination.total"
-                :show-size-changer="true"
-                :show-total="(total) => `共 ${total} 条`"
-                size="small"
-                @change="handleLeftPaginationChange"
+          <div class="mb-2 flex shrink-0 items-center gap-2">
+            <span class="shrink-0 whitespace-nowrap font-semibold">已选中</span>
+            <span class="shrink-0 whitespace-nowrap text-xs text-gray-400">
+              ({{ rightListState.pagination.total }} 人)
+            </span>
+            <Input
+              :model-value="rightListState.searchValue"
+              placeholder="搜索已选用户"
+              allow-clear
+              size="small"
+              class="ml-auto w-1/2"
+              @update:value="onRightSearch"
+            />
+          </div>
+          <div class="min-h-0 flex-1 overflow-auto">
+            <div
+              v-for="u in rightDisplay"
+              :key="u.id"
+              class="flex items-center gap-2 rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <Avatar v-if="u.avatar" class="size-7" :src="u.avatar" />
+              <Avatar v-else class="size-7">
+                {{ (u.nickname || u.username)?.substring(0, 1) }}
+              </Avatar>
+              <div class="min-w-0 flex-1">
+                <div class="truncate">{{ u.nickname }}</div>
+                <div class="truncate text-xs text-gray-400">
+                  {{ u.username
+                  }}<span v-if="u.mobile"> · {{ u.mobile }}</span>
+                </div>
+              </div>
+              <IconifyIcon
+                icon="lucide:x"
+                class="size-4 shrink-0 cursor-pointer text-gray-400 hover:text-red-500"
+                @click="removeSelect(u)"
               />
             </div>
-
-            <div v-if="info?.direction === 'right'">
-              <Pagination
-                v-model:current="rightListState.pagination.current"
-                v-model:page-size="rightListState.pagination.pageSize"
-                :total="rightListState.pagination.total"
-                :show-size-changer="true"
-                :show-total="(total) => `共 ${total} 条`"
-                size="small"
-                @change="handleRightPaginationChange"
-              />
-            </div>
-          </template>
-        </Transfer>
+            <Empty
+              v-if="!rightDisplay.length"
+              description="尚未选择用户"
+            />
+          </div>
+          <div class="mt-2 shrink-0 text-right">
+            <Pagination
+              size="small"
+              :current="rightListState.pagination.current"
+              :page-size="rightListState.pagination.pageSize"
+              :total="rightListState.pagination.total"
+              :show-size-changer="true"
+              :show-total="(t: number) => `共 ${t} 条`"
+              @change="onRightPage"
+            />
+          </div>
+        </Card>
       </Col>
     </Row>
     <template #footer>
@@ -483,65 +442,10 @@ function processDeptNode(node: any): DeptTreeNode {
 </template>
 
 <style lang="scss" scoped>
-:deep(.ant-transfer) {
+:deep(.ant-card-body) {
   display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  width: 100%;
-  height: 500px;
-}
-
-:deep(.ant-transfer-list) {
-  display: flex;
-  /* 用 !important 覆盖 antd Transfer 默认 width:200px / 内联宽度，确保两个列表(待选/选中) 在 flex 容器内均分并撑满区域 */
-  flex: 1 1 0 !important;
   flex-direction: column;
-  min-width: 0 !important;
-  width: auto !important;
   height: 100%;
-}
-
-:deep(.ant-transfer-list-header) {
-  flex-shrink: 0;
-}
-
-:deep(.ant-transfer-list-search) {
-  flex-shrink: 0;
-  padding: 8px;
-}
-
-:deep(.ant-transfer-list-body) {
-  flex: 1;
-  overflow: auto;
-}
-
-:deep(.ant-transfer-list-content) {
-  height: auto !important;
-}
-
-:deep(.ant-transfer-list-content-item) {
-  padding: 6px 12px;
-}
-
-:deep(.ant-transfer-operation) {
-  padding: 0 8px;
-}
-
-:deep(.ant-transfer-list-footer) {
-  flex-shrink: 0;
-}
-
-:deep(.ant-pagination) {
-  margin: 8px;
-  font-size: 12px;
-  text-align: right;
-}
-
-:deep(.ant-pagination-options) {
-  margin-left: 8px;
-}
-
-:deep(.ant-pagination-options-size-changer) {
-  margin-right: 8px;
+  min-height: 0;
 }
 </style>

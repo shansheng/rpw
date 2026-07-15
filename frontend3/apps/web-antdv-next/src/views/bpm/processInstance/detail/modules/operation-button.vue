@@ -1385,7 +1385,7 @@ defineExpose({ loadTodoTask });
         placement="top"
         :styles="{ root: { width: '400px' } }"
         :trigger="['click']"
-        v-if="runningTask?.children.length > 0"
+        v-if="runningTask?.children?.length > 0"
       >
         <Button type="dashed" @click="openPopover('deleteSign')">
           <IconifyIcon :size="14" icon="icon-park-outline:minus" /> 减签
