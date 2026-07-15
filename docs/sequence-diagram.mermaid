@@ -1,0 +1,64 @@
+sequenceDiagram
+    participant User
+    participant LoginPage as LoginPage.vue
+    participant UserStore as userStore (Pinia)
+    participant AuthApi as auth.ts (API)
+    participant Router as Vue Router
+
+    User->>LoginPage: 输入用户名密码，点击登录
+    LoginPage->>UserStore: store.login({ username, password })
+    UserStore->>AuthApi: login(params)
+    AuthApi->>request.ts: POST /api/v1/auth/login
+    request.ts-->>AuthApi: R<{token, tokenType, expiresIn}>
+    AuthApi-->>UserStore: response.data
+    UserStore->>UserStore: 将token存入localStorage
+    UserStore->>AuthApi: getUserInfo()
+    AuthApi->>request.ts: GET /api/v1/auth/userinfo
+    request.ts-->>AuthApi: R<{username, realName}>
+    AuthApi-->>UserStore: response.data
+    UserStore->>UserStore: 设置userInfo
+    UserStore-->>LoginPage: 登录成功
+    LoginPage->>Router: router.push('/dashboard')
+    Router-->>LoginPage: 跳转至首页
+
+    participant Router2 as Router
+    participant UserStore2 as userStore
+    participant MainLayout as MainLayout.vue
+
+    Router2->>Router2: beforeEach('/dashboard')
+    Router2->>UserStore2: 检查是否有 token?
+    alt 无 token
+        Router2->>LoginPage: 重定向至 /login
+    else 有 token
+        Router2->>MainLayout: 渲染 MainLayout
+        MainLayout->>UserStore2: 读取 userInfo
+        alt userInfo 为空
+            UserStore2->>UserStore2: getUserInfo() 加载
+        end
+        MainLayout->>MainLayout: 渲染路由对应页面组件
+    end
+
+    participant Page as ResourcePlanPage.vue
+    participant ResourcePlanApi as resourcePlan.ts
+    participant CommonTable as CommonTable.vue
+    participant Modal as CommonForm.vue
+
+    Page->>Page: onMounted, type='material'
+    Page->>Page: 设置 typeConfig（列定义、API端点等）
+    Page->>ResourcePlanApi: getPage('material', { pageNum:1, pageSize:20 }, filters)
+    ResourcePlanApi->>request.ts: GET /api/v1/resource-plan/material/page
+    request.ts-->>ResourcePlanApi: R<PageResult<ResourcePlanRecord>>
+    ResourcePlanApi-->>Page: records, total
+    Page->>CommonTable: 传入 columns, dataSource, total
+    CommonTable-->>Page: 渲染斑马纹表格
+
+    Page->>Page: 用户点击"新建"
+    Page->>Modal: 打开弹窗（fields根据type动态生成）
+    Modal-->>User: 填写表单，点击确定
+    User->>Modal: 提交
+    Modal->>ResourcePlanApi: create('material', formData)
+    ResourcePlanApi->>request.ts: POST /api/v1/resource-plan/material
+    request.ts-->>ResourcePlanApi: R<id>
+    ResourcePlanApi-->>Modal: success
+    Modal-->>Page: 关闭弹窗，刷新列表
+    Page->>ResourcePlanApi: getPage('material', ...)

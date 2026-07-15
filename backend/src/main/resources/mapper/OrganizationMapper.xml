@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.company.rpw.mapper.OrganizationMapper">
+
+    <!-- 根据父ID查询子节点 -->
+    <select id="selectByParentId" resultType="com.company.rpw.entity.Organization">
+        SELECT * FROM organization
+        WHERE parent_id = #{parentId}
+        AND deleted = 0
+        ORDER BY id ASC
+    </select>
+
+    <!-- 根据级别查询 -->
+    <select id="selectByLevel" resultType="com.company.rpw.entity.Organization">
+        SELECT * FROM organization
+        WHERE org_level = #{orgLevel}
+        AND deleted = 0
+        ORDER BY id ASC
+    </select>
+
+    <!-- 递归查询所有子节点ID -->
+    <select id="selectAllChildrenIds" resultType="java.lang.Long">
+        WITH RECURSIVE cte AS (
+            SELECT id FROM organization WHERE id = #{id} AND deleted = 0
+            UNION ALL
+            SELECT o.id FROM organization o INNER JOIN cte ON o.parent_id = cte.id
+            WHERE o.deleted = 0
+        )
+        SELECT id FROM cte WHERE id != #{id}
+    </select>
+
+</mapper>

@@ -1,0 +1,157 @@
+@use './process-designer';
+@use './process-panel';
+
+$success-color: #4eb819;
+$primary-color: #409eff;
+$danger-color: #f56c6c;
+$cancel-color: #909399;
+
+.process-viewer {
+  position: relative;
+  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImEiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMTBoNDBNMTAgMHY0ME0wIDIwaDQwTTIwIDB2NDBNMCAzMGg0ME0zMCAwdjQwIiBmaWxsPSJub25lIiBzdHJva2U9IiNlMGUwZTAiIG9wYWNpdHk9Ii4yIi8+PHBhdGggZD0iTTQwIDBIMHY0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZTBlMGUwIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2EpIi8+PC9zdmc+')
+    repeat,
+    #ffffff !important;
+  border: 1px solid #efefef;
+
+  // 强制内部 bpmn-js 容器与 SVG 底色为白，避免任何主题下透出黑色
+  .djs-container,
+  .djs-container svg,
+  svg.djs-svg {
+    background-color: #ffffff !important;
+  }
+
+  .success-arrow {
+    fill: $success-color;
+    stroke: $success-color;
+  }
+
+  .success-conditional {
+    fill: white;
+    stroke: $success-color;
+  }
+
+  .success.djs-connection {
+    .djs-visual path {
+      stroke: $success-color !important;
+      stroke-width: 2.6px !important;
+      //marker-end: url(#sequenceflow-end-white-success)!important;
+    }
+  }
+
+  .success.djs-connection.condition-expression {
+    .djs-visual path {
+      //marker-start: url(#conditional-flow-marker-white-success)!important;
+    }
+  }
+
+  .success.djs-shape {
+    .djs-visual rect {
+      fill: $success-color !important;
+      fill-opacity: 0.22 !important;
+      stroke: $success-color !important;
+      stroke-width: 2px !important;
+    }
+
+    .djs-visual polygon {
+      stroke: $success-color !important;
+      stroke-width: 2px !important;
+    }
+
+    .djs-visual path:nth-child(2) {
+      fill: $success-color !important;
+      stroke: $success-color !important;
+    }
+
+    .djs-visual circle {
+      fill: $success-color !important;
+      fill-opacity: 0.22 !important;
+      stroke: $success-color !important;
+      stroke-width: 2px !important;
+    }
+  }
+
+  // 当前（进行中）节点：最突出 —— 加粗蓝边 + 外发光 + 呼吸动画
+  .primary.djs-shape {
+    .djs-visual rect {
+      fill: $primary-color !important;
+      fill-opacity: 0.25 !important;
+      stroke: $primary-color !important;
+      stroke-width: 3px !important;
+      filter: drop-shadow(0 0 6px rgba(64, 158, 255, 0.7));
+      animation: bpm-node-pulse 1.6s ease-in-out infinite;
+    }
+
+    .djs-visual polygon {
+      stroke: $primary-color !important;
+      stroke-width: 3px !important;
+    }
+
+    .djs-visual circle {
+      fill: $primary-color !important;
+      fill-opacity: 0.25 !important;
+      stroke: $primary-color !important;
+      stroke-width: 3px !important;
+      filter: drop-shadow(0 0 6px rgba(64, 158, 255, 0.7));
+      animation: bpm-node-pulse 1.6s ease-in-out infinite;
+    }
+  }
+
+  .danger.djs-shape {
+    .djs-visual rect {
+      fill: $danger-color !important;
+      fill-opacity: 0.2 !important;
+      stroke: $danger-color !important;
+      stroke-width: 2px !important;
+    }
+
+    .djs-visual polygon {
+      stroke: $danger-color !important;
+      stroke-width: 2px !important;
+    }
+
+    .djs-visual circle {
+      fill: $danger-color !important;
+      fill-opacity: 0.2 !important;
+      stroke: $danger-color !important;
+      stroke-width: 2px !important;
+    }
+  }
+
+  .cancel.djs-shape {
+    .djs-visual rect {
+      fill: $cancel-color !important;
+      fill-opacity: 0.18 !important;
+      stroke: $cancel-color !important;
+      stroke-width: 2px !important;
+    }
+
+    .djs-visual polygon {
+      stroke: $cancel-color !important;
+      stroke-width: 2px !important;
+    }
+
+    .djs-visual circle {
+      fill: $cancel-color !important;
+      fill-opacity: 0.18 !important;
+      stroke: $cancel-color !important;
+      stroke-width: 2px !important;
+    }
+  }
+}
+
+.process-viewer .djs-tooltip-container,
+.process-viewer .djs-overlay-container,
+.process-viewer .djs-palette {
+  display: none;
+}
+
+// 当前节点呼吸动画（进行中节点高亮）
+@keyframes bpm-node-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 3px rgba(64, 158, 255, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 9px rgba(64, 158, 255, 0.9));
+  }
+}

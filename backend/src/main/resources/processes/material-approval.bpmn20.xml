@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             typeLanguage="http://www.w3.org/2001/XMLSchema"
+             expressionLanguage="http://www.w3.org/1999/XPath"
+             targetNamespace="http://www.company.com/rpw">
+
+    <process id="materialChangeApproval" name="物资计划变更审批流程" isExecutable="true">
+
+        <startEvent id="startEvent" name="开始"/>
+        
+        <userTask id="managerApproval" name="部门经理审批" flowable:assignee="${applicant}"/>
+
+        <exclusiveGateway id="approvalGateway" name="审批结果判断"/>
+
+        <userTask id="directorApproval" name="总监审批" flowable:assignee="${applicant}"/>
+        
+        <endEvent id="approveEnd" name="审批通过"/>
+        <endEvent id="rejectEnd" name="审批驳回"/>
+
+        <!-- 流程顺序 -->
+        <sequenceFlow id="flow1" sourceRef="startEvent" targetRef="managerApproval"/>
+        <sequenceFlow id="flow2" sourceRef="managerApproval" targetRef="approvalGateway"/>
+        
+        <sequenceFlow id="flow3" sourceRef="approvalGateway" targetRef="directorApproval">
+            <conditionExpression xsi:type="tFormalExpression">${approvalResult == 'APPROVED'}</conditionExpression>
+        </sequenceFlow>
+        <sequenceFlow id="flow4" sourceRef="approvalGateway" targetRef="rejectEnd">
+            <conditionExpression xsi:type="tFormalExpression">${approvalResult == 'REJECTED'}</conditionExpression>
+        </sequenceFlow>
+        
+        <sequenceFlow id="flow5" sourceRef="directorApproval" targetRef="approveEnd"/>
+
+    </process>
+
+</definitions>

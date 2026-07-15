@@ -1,0 +1,259 @@
+classDiagram
+    %% ==== 通用响应类型 ====
+    class R {
+        +number code
+        +string message
+        +T data
+        +number timestamp
+    }
+    class PageParams {
+        +number pageNum
+        +number pageSize
+    }
+    class PageResult {
+        +T[] records
+        +number total
+        +number pageNum
+        +number pageSize
+    }
+
+    %% ==== 业务模型 ====
+    class UserInfo {
+        +string username
+        +string realName
+        +string token
+        +string tokenType
+        +number expiresIn
+    }
+    class LoginParams {
+        +string username
+        +string password
+    }
+    class OrganizationNode {
+        +number id
+        +string name
+        +string code
+        +string type
+        +number parentId
+        +number sort
+        +string status
+        +string department
+        +string office
+        +OrganizationNode[] children
+    }
+    class CompanyRecord {
+        +number id
+        +string name
+        +string code
+        +string contactPerson
+        +string contactPhone
+        +string status
+        +string createTime
+    }
+    class ProjectRecord {
+        +number id
+        +string name
+        +string code
+        +number companyId
+        +string companyName
+        +string principal
+        +string startDate
+        +string plannedEndDate
+        +string status
+    }
+    class ResourcePlanRecord {
+        +number id
+        +number projectId
+        +string projectName
+        +string resourceType
+        +string materialName
+        +string spec
+        +string unit
+        +number quantity
+        +string status
+        +string createTime
+        +string usageLocation
+        +string procurementProgress
+        +string supplier
+        +string shippingStatus
+    }
+    class WarningRecord {
+        +number id
+        +string type
+        +string level
+        +string title
+        +string content
+        +number companyId
+        +number projectId
+        +string status
+        +string createTime
+        +string handleTime
+    }
+    class WarningRule {
+        +number id
+        +number companyId
+        +string companyName
+        +number advanceDays
+        +string enableType
+        +string notifyChannel
+        +string status
+    }
+    class FlowableTask {
+        +string taskId
+        +string taskName
+        +string processInstanceId
+        +string processName
+        +string initiator
+        +string createTime
+        +string status
+    }
+    class KanbanCard {
+        +number id
+        +string title
+        +string description
+        +string column
+        +string assignee
+        +string priority
+        +string dueDate
+        +number sort
+    }
+    class KanbanColumn {
+        +string id
+        +string title
+        +KanbanCard[] cards
+    }
+    class DictItem {
+        +number id
+        +string dictType
+        +string dictCode
+        +string dictValue
+        +number sort
+        +string status
+    }
+
+    %% ==== API Service 类 ====
+    class AuthApi {
+        +login(LoginParams) Promise~R~UserInfo~~
+        +getUserInfo() Promise~R~UserInfo~~
+    }
+    class OrganizationApi {
+        +getTree() Promise~R~OrganizationNode[]~~
+        +createNode(OrganizationNode) Promise~R~number~~
+        +updateNode(OrganizationNode) Promise~R~boolean~~
+        +deleteNode(number) Promise~R~boolean~~
+    }
+    class CompanyApi {
+        +getPage(PageParams, filters) Promise~R~PageResult~CompanyRecord~~~
+        +create(CompanyRecord) Promise~R~number~~
+        +update(CompanyRecord) Promise~R~boolean~~
+        +delete(number) Promise~R~boolean~~
+    }
+    class ProjectApi {
+        +getPage(PageParams, filters) Promise~R~PageResult~ProjectRecord~~~
+        +create(ProjectRecord) Promise~R~number~~
+        +update(ProjectRecord) Promise~R~boolean~~
+        +delete(number) Promise~R~boolean~~
+    }
+    class ResourcePlanApi {
+        +getPage(string type, PageParams, filters) Promise~R~PageResult~ResourcePlanRecord~~~
+        +getDetail(string type, number id) Promise~R~ResourcePlanRecord~~
+        +create(string type, ResourcePlanRecord) Promise~R~number~~
+        +update(string type, ResourcePlanRecord) Promise~R~boolean~~
+        +delete(string type, number id) Promise~R~boolean~~
+    }
+    class WarningApi {
+        +getBoardStats() Promise~R~object~~
+        +getRecordPage(PageParams, filters) Promise~R~PageResult~WarningRecord~~~
+        +getRulePage(PageParams, filters) Promise~R~PageResult~WarningRule~~~
+        +createRule(WarningRule) Promise~R~number~~
+        +updateRule(WarningRule) Promise~R~boolean~~
+        +getStatistics(filters) Promise~R~object~~
+    }
+    class FlowableApi {
+        +getTaskPage(PageParams) Promise~R~PageResult~FlowableTask~~~
+        +completeTask(taskId, variables) Promise~R~boolean~~
+        +getMyInitiated(PageParams) Promise~R~PageResult~~
+        +getHistory(PageParams, filters) Promise~R~PageResult~~
+        +getDefinitions() Promise~R~array~~
+        +deployProcess(formData) Promise~R~boolean~~
+    }
+    class KanbanApi {
+        +getBoard() Promise~R~KanbanColumn[]~~
+        +createCard(KanbanCard) Promise~R~number~~
+        +updateCard(KanbanCard) Promise~R~boolean~~
+        +deleteCard(number) Promise~R~boolean~~
+        +moveCard(cardId, columnId, sort) Promise~R~boolean~~
+    }
+    class ReportApi {
+        +getConfig() Promise~R~object~~
+        +saveConfig(config) Promise~R~boolean~~
+        +getPreview(filters) Promise~R~object~~
+        +getExportPage(PageParams) Promise~R~PageResult~~
+        +createExportTask(filters) Promise~R~number~~
+        +downloadFile(taskId) Promise~Blob~~
+    }
+    class DictApi {
+        +getTypes() Promise~R~array~~
+        +getItems(type, PageParams) Promise~R~PageResult~DictItem~~~
+        +createItem(DictItem) Promise~R~number~~
+        +updateItem(DictItem) Promise~R~boolean~~
+        +deleteItem(number) Promise~R~boolean~~
+    }
+
+    %% ==== Store 类 ====
+    class UserStore {
+        -string token
+        -UserInfo userInfo
+        +login(LoginParams) Promise~void~~
+        +logout() void
+        +getInfo() Promise~void~~
+        +isLoggedIn() boolean
+    }
+    class AppStore {
+        -boolean sidebarCollapsed
+        +toggleSidebar() void
+    }
+
+    %% ==== Component Props ====
+    class CommonTableProps {
+        +object[] columns
+        +object[] dataSource
+        +number total
+        +boolean loading
+        +object searchFields
+        +event onSearch
+        +event onPageChange
+        +slot actions
+    }
+    class CommonFormProps {
+        +object[] fields
+        +object model
+        +boolean visible
+        +string title
+        +number width
+        +event onOk
+        +event onCancel
+    }
+    class StatCardProps {
+        +string title
+        +number value
+        +string icon
+        +string color
+    }
+
+    %% ==== 关系 ====
+    R <|.. PageResult : 嵌套
+    PageParams *-- PageResult : 分页输入输出
+    OrganizationApi ..> OrganizationNode : 操作
+    CompanyApi ..> PageResult~CompanyRecord~ : 返回
+    ProjectApi ..> PageResult~ProjectRecord~ : 返回
+    ResourcePlanApi ..> PageResult~ResourcePlanRecord~ : 返回
+    WarningApi ..> WarningRecord : 操作
+    WarningApi ..> WarningRule : 操作
+    FlowableApi ..> FlowableTask : 操作
+    KanbanApi ..> KanbanCard : 操作
+    KanbanApi ..> KanbanColumn : 操作
+    DictApi ..> DictItem : 操作
+    AuthApi ..> UserInfo : 返回
+    UserStore ..> UserInfo : 管理
+    UserStore ..> AuthApi : 调用

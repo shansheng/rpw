@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.company.rpw.mapper.ResourcePlanHardwareMapper">
+
+    <!-- 基础字段映射 -->
+    <resultMap id="BaseResultMap" type="com.company.rpw.entity.ResourcePlanHardware">
+        <id property="id" column="id" />
+        <result property="projectId" column="project_id" />
+        <result property="wbsCode" column="wbs_code" />
+        <result property="hardwareName" column="hardware_name" />
+        <result property="specification" column="specification" />
+        <result property="unit" column="unit" />
+        <result property="budgetQuantity" column="budget_quantity" />
+        <result property="supplierCode" column="supplier_code" />
+        <result property="purchaseSourceCode" column="purchase_source_code" />
+        <result property="purchaseProgressCode" column="purchase_progress_code" />
+        <result property="shippingProgressCode" column="shipping_progress_code" />
+        <result property="planArrivalDate" column="plan_arrival_date" />
+        <result property="actualArrivalDate" column="actual_arrival_date" />
+        <result property="remark" column="remark" />
+        <result property="createTime" column="created_at" />
+        <result property="updateTime" column="updated_at" />
+        <result property="deleted" column="deleted" />
+    </resultMap>
+
+</mapper>

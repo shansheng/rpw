@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.company.rpw.mapper.CompanyMapper">
+
+    <!-- 根据组织ID查询公司列表 -->
+    <select id="selectByOrgId" resultType="com.company.rpw.entity.Company">
+        SELECT * FROM company
+        WHERE org_id = #{orgId}
+        AND deleted = 0
+        ORDER BY id ASC
+    </select>
+
+</mapper>

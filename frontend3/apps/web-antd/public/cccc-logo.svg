@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="中国交建">
+  <defs>
+    <linearGradient id="ccccBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00529b"/>
+      <stop offset="1" stop-color="#003a6f"/>
+    </linearGradient>
+  </defs>
+  <!-- 蓝色圆角方形底 -->
+  <rect x="0" y="0" width="120" height="120" rx="24" fill="url(#ccccBg)"/>
+  <!-- 上部：中 字（白色） -->
+  <g fill="#ffffff">
+    <rect x="46" y="22" width="28" height="6" rx="2"/>
+    <rect x="57" y="22" width="6" height="26" rx="2"/>
+  </g>
+  <rect x="47" y="34" width="26" height="12" rx="2" fill="none" stroke="#ffffff" stroke-width="5"/>
+  <!-- 下部：桥梁/道路（白色，象征基建） -->
+  <path d="M30 92 Q60 60 90 92" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+  <rect x="46" y="78" width="5" height="14" rx="2" fill="#ffffff"/>
+  <rect x="69" y="78" width="5" height="14" rx="2" fill="#ffffff"/>
+</svg>

@@ -1,0 +1,101 @@
+# =====================================================
+# 资源计划预警系统 - 生产环境配置模板
+# 使用方式: 复制为 application-prod.yml，修改实际值后使用
+# 启动命令: java -jar rpw-1.0.0.jar --spring.profiles.active=prod
+# =====================================================
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+    allow-circular-references: true
+
+  # 数据源配置 - 请修改为实际生产环境值
+  datasource:
+    url: jdbc:mysql://YOUR_DB_HOST:3306/rpw_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: YOUR_DB_USERNAME
+    password: YOUR_DB_PASSWORD
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  # Redis配置 - 请修改为实际生产环境值
+  data:
+    redis:
+      host: YOUR_REDIS_HOST
+      port: 6379
+      password: YOUR_REDIS_PASSWORD
+      database: 0
+      timeout: 5000ms
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+  liquibase:
+    enabled: false
+
+# MyBatis-Plus配置 - 生产环境关闭SQL日志
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.company.rpw.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    # 生产环境关闭SQL日志输出
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# JWT配置 - 必须更换为安全的密钥
+jwt:
+  secret: YOUR_SECURE_JWT_SECRET_AT_LEAST_256_BITS
+  expiration: 86400
+
+# Knife4j配置 - 生产环境可选择性关闭
+knife4j:
+  enable: false
+  production: true
+
+# Flowable配置
+flowable:
+  async-executor-activate: true
+  database-schema-update: true
+  app:
+    enabled: false
+  cmmn:
+    enabled: false
+  dmn:
+    enabled: false
+  eventregistry:
+    enabled: false
+  idm:
+    enabled: false
+  process:
+    definition-cache-limit: 100
+    deployment-enabled: true
+  history-level: full
+
+# 生产环境日志配置
+logging:
+  level:
+    root: INFO
+    com.company.rpw: INFO
+    org.flowable.engine.impl.bpmn: WARN
+    org.flowable.task.service: WARN
+  file:
+    name: /opt/rpw/app/logs/rpw.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 30
+      total-size-cap: 1GB

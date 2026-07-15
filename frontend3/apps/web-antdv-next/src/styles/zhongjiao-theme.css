@@ -1,0 +1,49 @@
+/*
+ * 中国交建（CCCC）主题 token
+ * 参考：业务待办导航侧边栏 — 深蓝底（#005BAC）+ 白字 + 高亮选中（#1677FF）
+ * 说明：Vben 默认在浅色模式下 sidebar 仍带 .dark class，会走暗色变量导致侧栏发黑；
+ *       以下用高优先级选择器强制把 semi-dark 侧栏改回中国交建深蓝。
+ */
+
+/* ===== 浅色模式：强制侧边栏/菜单为深蓝（覆盖 Vben semi-dark 的黑色） ===== */
+/* 主色由 #005BAC 调暗为 #003A8C，更柔和舒适、降低刺眼感 */
+html:not(.dark) {
+  --sidebar: 215 100% 27%; /* #003A8C */
+  --sidebar-deep: 212 100% 19%; /* #002766 */
+  --background: 216 20% 95%; /* #F0F2F5 */
+  --card: 0 0% 100%; /* #FFFFFF */
+}
+
+/* Vben sidebar 在浅色模式下仍带 .dark class，强制其菜单变量走深蓝 + 白字 */
+html:not(.dark) aside.dark,
+html:not(.dark) aside.dark .vben-menu,
+html:not(.dark) aside.dark .vben-menu__popup-container,
+html:not(.dark) .vben-menu.is-dark,
+html:not(.dark) .vben-menu__popup-container.is-dark {
+  --sidebar: 215 100% 27% !important; /* #003A8C */
+  --sidebar-deep: 212 100% 19% !important; /* #002766 */
+  --menu: 215 100% 27% !important;
+  --foreground: 0 0% 100% !important; /* 白字/图标 */
+  --accent: 217 90% 56% !important; /* #1677FF 高亮 */
+  --accent-foreground: 0 0% 100% !important; /* 高亮上的白字 */
+}
+
+/* ===== 暗色模式：中国交建暗色 token（#001529 侧栏 + #1677FF 主色） ===== */
+html.dark {
+  --sidebar: 209 100% 8%; /* #001529 */
+  --sidebar-deep: 212 100% 5%; /* #000C1A */
+
+  /* 主色基准（= #1677FF 的 500 阶） */
+  --primary: 215 100% 54% !important;
+  --primary-foreground: 0 0% 100% !important; /* 主色上的白字 */
+
+  /* 主色调色板（Ant Design blue，以 #1677FF 为 500） */
+  --primary-50: 206 100% 95% !important; /* #E6F4FF */
+  --primary-100: 207 100% 86% !important; /* #BAE0FF */
+  --primary-200: 209 100% 78% !important; /* #91CAFF */
+  --primary-300: 211 100% 71% !important; /* #69B1FF */
+  --primary-400: 213 100% 63% !important; /* #4096FF */
+  --primary-500: 215 100% 54% !important; /* #1677FF */
+  --primary-600: 217 92% 44% !important; /* #0958D9 */
+  --primary-700: 219 100% 35% !important; /* #003EB3 */
+}
