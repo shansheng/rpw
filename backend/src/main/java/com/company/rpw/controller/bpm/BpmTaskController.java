@@ -246,54 +246,52 @@ public class BpmTaskController {
 
     @PutMapping("/approve")
     public R<Void> approve(@RequestBody Map<String, Object> body) {
+        return completeTask(body, true, null);
+    }
+
+    @PutMapping("/reject")
+    public R<Void> reject(@RequestBody Map<String, Object> body) {
+        String reason = (String) body.get("reason");
+        return completeTask(body, false, reason);
+    }
+
+    /**
+     * 完成审批任务（通过 / 拒绝共用）。
+     * <p>关键不变量：业务状态完全由 approved 决定——通过=审批通过(FINISH)、拒绝=审批不通过(INVALID)。
+     * 两个入口仅 approved 取值不同，从结构上杜绝「拒绝被误标为审批通过」这类逻辑分叉错误。</p>
+     */
+    private R<Void> completeTask(Map<String, Object> body, boolean approved, String reason) {
         String taskId = String.valueOf(body.get("id"));
         // 预判断：任务可能已被处理（如重复点击、页面未刷新），避免把 Flowable 原始异常抛给用户
         Task t = taskService.createTaskQuery().taskId(taskId).singleResult();
         if (t == null) {
             return R.fail("任务不存在或已处理");
         }
+        String piId = t.getProcessInstanceId();
         Map<String, Object> variables = body.get("variables") == null
                 ? new HashMap<>() : (Map<String, Object>) body.get("variables");
-        variables.put("approved", true);
-        variables.put("approvalResult", 1);
-        String piId = t.getProcessInstanceId();
+        // 同时写入 approved 与 approvalResult 两个变量，兼容两种网关写法
+        variables.put("approved", approved);
+        variables.put("approvalResult", approved ? 1 : 2);
         try {
             taskService.complete(taskId, variables);
-            // 流程结束后回写请假业务状态为「审批通过」
-            syncLeaveStatus(piId, BpmProcessInstanceStatusEnum.FINISH);
-            return R.ok();
-        } catch (Exception e) {
-            log.error("审批通过失败", e);
-            return R.fail("审批通过失败: " + e.getMessage());
-        }
-    }
-
-    @PutMapping("/reject")
-    public R<Void> reject(@RequestBody Map<String, Object> body) {
-        String taskId = String.valueOf(body.get("id"));
-        String reason = (String) body.get("reason");
-        try {
-            Task t = taskService.createTaskQuery().taskId(taskId).singleResult();
-            if (t == null) return R.fail("任务不存在或已处理");
-            String piId = t.getProcessInstanceId();
-            Map<String, Object> variables = new HashMap<>();
-            variables.put("approved", false);
-            variables.put("approvalResult", 2);
-            taskService.complete(taskId, variables);
-            // 流程可能已随 endEvent 正常结束；仅当运行时实例仍在才删除（终止流程）
-            try {
-                if (runtimeService.createProcessInstanceQuery().processInstanceId(piId).count() > 0) {
-                    runtimeService.deleteProcessInstance(piId, "驳回: " + (reason == null ? "" : reason));
+            // 拒绝且流程仍在运行：终止流程（驳回）
+            if (!approved) {
+                try {
+                    if (runtimeService.createProcessInstanceQuery().processInstanceId(piId).count() > 0) {
+                        runtimeService.deleteProcessInstance(piId, "驳回: " + (reason == null ? "" : reason));
+                    }
+                } catch (Exception ignored) {
+                    // 实例已结束则忽略
                 }
-            } catch (Exception ignored) {
-                // 实例已结束则忽略
             }
-            // 回写请假业务状态为「审批不通过」（按历史结束时间判断）
-            syncLeaveStatus(piId, BpmProcessInstanceStatusEnum.INVALID);
+            // 回写请假业务状态：仅当流程真正结束（endTime 非空）才更新，避免多实例中途误改
+            syncLeaveStatus(piId, approved ? BpmProcessInstanceStatusEnum.FINISH
+                    : BpmProcessInstanceStatusEnum.INVALID);
             return R.ok();
         } catch (Exception e) {
-            log.error("驳回失败", e);
-            return R.fail("驳回失败: " + e.getMessage());
+            log.error(approved ? "审批通过失败" : "驳回失败", e);
+            return R.fail((approved ? "审批通过" : "驳回") + "失败: " + e.getMessage());
         }
     }
 
@@ -352,7 +350,7 @@ public class BpmTaskController {
         try {
             runtimeService.createChangeActivityStateBuilder()
                     .processInstanceId(t.getProcessInstanceId())
-                    .moveExecutionToActivityId(t.getTaskDefinitionKey(), target)
+                    .moveExecutionToActivityId(t.getExecutionId(), target)
                     .changeState();
             return R.ok();
         } catch (Exception e) {

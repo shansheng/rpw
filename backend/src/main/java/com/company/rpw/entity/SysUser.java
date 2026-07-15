@@ -37,6 +37,9 @@ public class SysUser extends BaseEntity {
     /** 状态：1启用 0禁用 */
     private Integer status;
 
+    /** 性别：1男 2女 */
+    private Integer sex;
+
     /** 角色ID列表（非表字段，仅详情/列表返回用，不参与表读写） */
     @TableField(exist = false)
     private List<Long> roleIds;

@@ -1,14 +1,16 @@
 package com.company.rpw.controller;
 
+import com.company.rpw.common.PageResult;
 import com.company.rpw.common.R;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 /**
  * 系统字典数据 Controller（精简版）
@@ -19,20 +21,135 @@ import java.util.Map;
  *
  * <p>返回结构对齐前端 {@code SystemDictDataApi.DictData}：dictType / label / value / status / sort 等，
  * 其中 value 为字符串（前端按 valueType 再转 number / boolean）。</p>
+ *
+ * <p>字典管理页（views/system/dict）的左侧字典类型列表由 {@code SystemDictTypeController} 提供，
+ * 右侧字典数据列表由本控制器的 {@code /page} 提供（同样走内存常量，与 {@code /simple-list} 同源）。
+ * 新增/修改/删除均为内存态，重启后重置——生产应接 sys_dict_data 表。</p>
  */
 @RestController
 @RequestMapping("/api/v1/system/dict-data")
 public class SystemDictDataController {
 
-    private static final List<Map<String, Object>> DICT_DATA = buildDictData();
+    /** 字典数据内存存储（可变，支持管理页的增删改） */
+    private static final List<Map<String, Object>> DICT_DATA =
+            new ArrayList<>(buildDictData());
+    /** 自增 id 生成器（仅内存，重启后重置） */
+    private static final AtomicLong DATA_ID_SEQ =
+            new AtomicLong(DICT_DATA.size() + 1);
 
     /**
-     * 精简字典数据列表
+     * 精简字典数据列表（路由守卫加载字典缓存用）
      * GET /api/v1/system/dict-data/simple-list
      */
     @GetMapping("/simple-list")
     public R<List<Map<String, Object>>> simpleList() {
         return R.ok(DICT_DATA);
+    }
+
+    /**
+     * 分页查询字典数据（字典管理页右侧列表用）
+     * GET /api/v1/system/dict-data/page
+     */
+    @GetMapping("/page")
+    public R<PageResult<Map<String, Object>>> page(
+            @RequestParam(required = false) Integer pageNo,
+            @RequestParam(required = false) Integer pageSize,
+            @RequestParam(required = false) String dictType,
+            @RequestParam(required = false) String label) {
+        int no = pageNo == null ? 1 : pageNo;
+        int size = pageSize == null ? 10 : pageSize;
+        List<Map<String, Object>> filtered = DICT_DATA.stream()
+                .filter(m -> dictType == null || dictType.equals(m.get("dictType")))
+                .filter(m -> label == null || ((String) m.get("label")).contains(label))
+                .collect(Collectors.toList());
+        long total = filtered.size();
+        int from = Math.min((no - 1) * size, filtered.size());
+        int to = Math.min(from + size, filtered.size());
+        return R.ok(PageResult.of(filtered.subList(from, to), total));
+    }
+
+    /**
+     * 根据ID查询字典数据
+     * GET /api/v1/system/dict-data/get
+     */
+    @GetMapping("/get")
+    public R<Map<String, Object>> get(@RequestParam Long id) {
+        return DICT_DATA.stream()
+                .filter(m -> id.equals(m.get("id")))
+                .findFirst()
+                .map(R::ok)
+                .orElse(R.fail("字典数据不存在"));
+    }
+
+    /**
+     * 新增字典数据（内存态，重启后重置；生产应接 sys_dict_data 表）
+     * POST /api/v1/system/dict-data/create
+     */
+    @PostMapping("/create")
+    public R<Long> create(@RequestBody Map<String, Object> body) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        long id = DATA_ID_SEQ.getAndIncrement();
+        m.put("id", id);
+        m.put("dictType", body.getOrDefault("dictType", ""));
+        m.put("label", body.getOrDefault("label", ""));
+        m.put("value", String.valueOf(body.getOrDefault("value", "")));
+        m.put("status", body.getOrDefault("status", 1));
+        m.put("sort", body.getOrDefault("sort", DICT_DATA.size() + 1));
+        m.put("colorType", body.getOrDefault("colorType", ""));
+        m.put("cssClass", body.getOrDefault("cssClass", ""));
+        m.put("remark", body.getOrDefault("remark", ""));
+        m.put("createTime", "2024-01-01 00:00:00");
+        DICT_DATA.add(m);
+        return R.ok(id);
+    }
+
+    /**
+     * 修改字典数据
+     * PUT /api/v1/system/dict-data/update
+     */
+    @PutMapping("/update")
+    public R<Boolean> update(@RequestBody Map<String, Object> body) {
+        Long id = Long.valueOf(String.valueOf(body.get("id")));
+        return DICT_DATA.stream()
+                .filter(m -> id.equals(m.get("id")))
+                .findFirst()
+                .map(m -> {
+                    m.put("dictType", body.getOrDefault("dictType", m.get("dictType")));
+                    m.put("label", body.getOrDefault("label", m.get("label")));
+                    m.put("value", String.valueOf(body.getOrDefault("value", m.get("value"))));
+                    m.put("status", body.getOrDefault("status", m.get("status")));
+                    m.put("sort", body.getOrDefault("sort", m.get("sort")));
+                    m.put("colorType", body.getOrDefault("colorType", m.get("colorType")));
+                    m.put("cssClass", body.getOrDefault("cssClass", m.get("cssClass")));
+                    m.put("remark", body.getOrDefault("remark", m.get("remark")));
+                    return R.ok(true);
+                })
+                .orElse(R.fail("字典数据不存在"));
+    }
+
+    /**
+     * 删除字典数据
+     * DELETE /api/v1/system/dict-data/delete
+     */
+    @DeleteMapping("/delete")
+    public R<Boolean> delete(@RequestParam Long id) {
+        boolean removed = DICT_DATA.removeIf(m -> id.equals(m.get("id")));
+        return R.ok(removed);
+    }
+
+    /**
+     * 批量删除字典数据
+     * DELETE /api/v1/system/dict-data/delete-list
+     */
+    @DeleteMapping("/delete-list")
+    public R<Boolean> deleteList(@RequestParam String ids) {
+        List<Long> idList = Arrays.stream(ids.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Long::valueOf)
+                .collect(Collectors.toList());
+        boolean removed = DICT_DATA.removeIf(m -> idList.contains((Long) m.get("id")));
+        return R.ok(removed);
     }
 
     private static List<Map<String, Object>> buildDictData() {
@@ -57,6 +174,9 @@ public class SystemDictDataController {
         // 角色类型：1内置角色 2自定义角色（对齐 SystemRoleTypeEnum，与 sys_role.type 一致）
         add(list, "system_role_type", "内置角色", "1", 1);
         add(list, "system_role_type", "自定义角色", "2", 2);
+        // 用户性别：1男 2女（对齐 SysUser.sex 字段）
+        add(list, "system_user_sex", "男", "1", 1);
+        add(list, "system_user_sex", "女", "2", 2);
         // 数据权限范围：1全部 2指定部门 3部门 4部门及以下 5仅本人（对齐 SystemDataScopeEnum）
         add(list, "system_data_scope", "全部数据权限", "1", 1);
         add(list, "system_data_scope", "指定部门数据权限", "2", 2);

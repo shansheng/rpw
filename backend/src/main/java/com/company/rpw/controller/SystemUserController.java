@@ -4,17 +4,33 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.company.rpw.common.R;
+import com.company.rpw.entity.Organization;
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.annotation.ExcelProperty;
 import com.company.rpw.entity.SysUser;
 import com.company.rpw.entity.SysUserRole;
 import com.company.rpw.mapper.SysUserMapper;
 import com.company.rpw.mapper.SysUserRoleMapper;
+import com.company.rpw.service.OrganizationService;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -30,9 +46,48 @@ public class SystemUserController {
     private final SysUserMapper sysUserMapper;
     private final PasswordEncoder passwordEncoder;
     private final SysUserRoleMapper userRoleMapper;
+    private final OrganizationService organizationService;
 
     /** 默认初始口令 */
     private static final String DEFAULT_PASSWORD = "123456";
+
+    /**
+     * 收集某组织及其全部子孙组织的 ID（含自身）。
+     * 用于按组织筛选用户时，递归包含下级（公司/项目/部门）人员，
+     * 而非仅精确匹配该组织自身。组织树可能含已删除节点，需跳过。
+     */
+    private Set<Long> collectOrgAndDescendants(Long orgId) {
+        Set<Long> result = new LinkedHashSet<>();
+        if (orgId == null) {
+            return result;
+        }
+        List<Organization> all = organizationService.list();
+        Map<Long, List<Long>> parentToChildren = new HashMap<>();
+        for (Organization o : all) {
+            if (o.getParentId() == null
+                    || (o.getDeleted() != null && o.getDeleted() == 1)) {
+                continue;
+            }
+            parentToChildren
+                    .computeIfAbsent(o.getParentId(), k -> new ArrayList<>())
+                    .add(o.getId());
+        }
+        Queue<Long> queue = new LinkedList<>();
+        queue.add(orgId);
+        result.add(orgId);
+        while (!queue.isEmpty()) {
+            Long cur = queue.poll();
+            List<Long> children = parentToChildren.get(cur);
+            if (children != null) {
+                for (Long child : children) {
+                    if (result.add(child)) {
+                        queue.add(child);
+                    }
+                }
+            }
+        }
+        return result;
+    }
 
     /**
      * 用户分页列表（支持按用户名/真实姓名/状态筛选）
@@ -98,7 +153,7 @@ public class SystemUserController {
             wrapper.eq(SysUser::getStatus, status);
         }
         if (deptId != null) {
-            wrapper.eq(SysUser::getOrgId, deptId);
+            wrapper.in(SysUser::getOrgId, collectOrgAndDescendants(deptId));
         }
         if (userIds != null && !userIds.isEmpty()) {
             wrapper.in(SysUser::getId, userIds);
@@ -106,6 +161,7 @@ public class SystemUserController {
         wrapper.orderByDesc(SysUser::getId);
         IPage<SysUser> page = new Page<>(pageNo, pageSize);
         page = sysUserMapper.selectPage(page, wrapper);
+        fillRoleIds(page.getRecords());
         List<Map<String, Object>> list = page.getRecords().stream().map(u -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", u.getId());
@@ -115,6 +171,7 @@ public class SystemUserController {
             m.put("email", u.getEmail());
             m.put("status", u.getStatus());
             m.put("deptId", u.getOrgId() == null ? 0L : u.getOrgId());
+            m.put("roleIds", u.getRoleIds());
             return m;
         }).collect(Collectors.toList());
         Map<String, Object> result = new LinkedHashMap<>();
@@ -130,10 +187,19 @@ public class SystemUserController {
      * GET /api/v1/system/user/get?id=1
      */
     @GetMapping("/get")
-    public R<SysUser> getById(@RequestParam Long id) {
+    public R<Map<String, Object>> getById(@RequestParam Long id) {
         SysUser user = sysUserMapper.selectById(id);
-        user.setRoleIds(userRoleMapper.selectRoleIdsByUserId(id));
-        return R.ok(user);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", user.getId());
+        m.put("username", user.getUsername());
+        m.put("nickname", user.getRealName());
+        m.put("email", user.getEmail());
+        m.put("mobile", user.getPhone());
+        m.put("deptId", user.getOrgId() == null ? 0L : user.getOrgId());
+        m.put("status", user.getStatus());
+        m.put("sex", user.getSex() == null ? 1 : user.getSex());
+        m.put("roleIds", userRoleMapper.selectRoleIdsByUserId(id));
+        return R.ok(m);
     }
 
     /**
@@ -170,6 +236,7 @@ public class SystemUserController {
         user.setPhone(req.getMobile());
         user.setOrgId(req.getDeptId());
         user.setStatus(req.getStatus() == null ? 1 : req.getStatus());
+        user.setSex(req.getSex() == null ? 1 : req.getSex());
         sysUserMapper.insert(user);
         // 同步用户-角色关联（创建时若选了角色）
         syncUserRoles(user.getId(), req.getRoleIds());
@@ -210,6 +277,9 @@ public class SystemUserController {
         if (req.getStatus() != null) {
             existing.setStatus(req.getStatus());
         }
+        if (req.getSex() != null) {
+            existing.setSex(req.getSex());
+        }
         boolean ok = sysUserMapper.updateById(existing) > 0;
         // 仅当表单显式传了 roleIds 时才同步（编辑表单未预载角色则保持原有关联）
         if (req.getRoleIds() != null) {
@@ -233,6 +303,28 @@ public class SystemUserController {
     @DeleteMapping("/{id}")
     public R<Boolean> delete(@PathVariable Long id) {
         return R.ok(sysUserMapper.deleteById(id) > 0);
+    }
+
+    /**
+     * 删除用户（与前端 deleteUser 对齐：
+     * DELETE /api/v1/system/user/delete?id=1）
+     * <p>显式映射，避免被 /{id} 兜底把 "delete" 当 Long 解析报 500。</p>
+     */
+    @DeleteMapping("/delete")
+    public R<Boolean> deleteById(@RequestParam Long id) {
+        return R.ok(sysUserMapper.deleteById(id) > 0);
+    }
+
+    /**
+     * 批量删除用户（与前端 deleteUserList 对齐：
+     * DELETE /api/v1/system/user/delete-list?ids=1,2,3）
+     */
+    @DeleteMapping("/delete-list")
+    public R<Boolean> deleteByIds(@RequestParam List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return R.ok(true);
+        }
+        return R.ok(sysUserMapper.deleteBatchIds(ids) > 0);
     }
 
     /**
@@ -309,6 +401,7 @@ public class SystemUserController {
         private String email;
         private String mobile;
         private Integer status;
+        private Integer sex;
         private List<Long> roleIds;
 
         public Long getId() {
@@ -375,6 +468,14 @@ public class SystemUserController {
             this.status = status;
         }
 
+        public Integer getSex() {
+            return sex;
+        }
+
+        public void setSex(Integer sex) {
+            this.sex = sex;
+        }
+
         public List<Long> getRoleIds() {
             return roleIds;
         }
@@ -382,5 +483,147 @@ public class SystemUserController {
         public void setRoleIds(List<Long> roleIds) {
             this.roleIds = roleIds;
         }
+    }
+
+    /**
+     * 导出用户（Excel）
+     * GET /api/v1/system/user/export-excel
+     */
+    @GetMapping("/export-excel")
+    public void exportExcel(HttpServletResponse response,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String nickname,
+            @RequestParam(required = false) String mobile,
+            @RequestParam(required = false) Integer status) throws IOException {
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        if (username != null && !username.isEmpty()) {
+            wrapper.like(SysUser::getUsername, username);
+        }
+        if (nickname != null && !nickname.isEmpty()) {
+            wrapper.like(SysUser::getRealName, nickname);
+        }
+        if (mobile != null && !mobile.isEmpty()) {
+            wrapper.like(SysUser::getPhone, mobile);
+        }
+        if (status != null) {
+            wrapper.eq(SysUser::getStatus, status);
+        }
+        wrapper.orderByDesc(SysUser::getId);
+        List<SysUser> users = sysUserMapper.selectList(wrapper);
+        List<UserExcelVO> list = users.stream().map(u -> {
+            UserExcelVO v = new UserExcelVO();
+            v.setUsername(u.getUsername());
+            v.setNickname(u.getRealName());
+            v.setMobile(u.getPhone());
+            v.setEmail(u.getEmail());
+            v.setStatusText(u.getStatus() != null && u.getStatus() == 1 ? "启用" : "禁用");
+            return v;
+        }).collect(Collectors.toList());
+        writeExcel(response, "用户数据", list);
+    }
+
+    /**
+     * 下载用户导入模板（仅表头）
+     * GET /api/v1/system/user/get-import-template
+     */
+    @GetMapping("/get-import-template")
+    public void getImportTemplate(HttpServletResponse response) throws IOException {
+        writeExcel(response, "用户导入模板", new ArrayList<>());
+    }
+
+    /**
+     * 导入用户（Excel）
+     * POST /api/v1/system/user/import  (multipart/form-data)
+     */
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public R<Map<String, Object>> importUsers(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "updateSupport", required = false) Boolean updateSupport) {
+        try {
+            List<UserExcelVO> data = EasyExcel.read(file.getInputStream())
+                    .head(UserExcelVO.class)
+                    .sheet()
+                    .doReadSync();
+            int success = 0;
+            int failure = 0;
+            List<String> failureUsernames = new ArrayList<>();
+            boolean doUpdate = Boolean.TRUE.equals(updateSupport);
+            for (UserExcelVO v : data) {
+                if (v.getUsername() == null || v.getUsername().trim().isEmpty()) {
+                    failure++;
+                    failureUsernames.add("(空用户名)");
+                    continue;
+                }
+                String uname = v.getUsername().trim();
+                SysUser existing = sysUserMapper.selectOne(
+                        new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, uname));
+                if (existing != null) {
+                    if (!doUpdate) {
+                        failure++;
+                        failureUsernames.add(uname);
+                        continue;
+                    }
+                    if (v.getNickname() != null) {
+                        existing.setRealName(v.getNickname());
+                    }
+                    if (v.getMobile() != null) {
+                        existing.setPhone(v.getMobile());
+                    }
+                    if (v.getEmail() != null) {
+                        existing.setEmail(v.getEmail());
+                    }
+                    if (v.getStatusText() != null) {
+                        existing.setStatus("禁用".equals(v.getStatusText()) ? 0 : 1);
+                    }
+                    sysUserMapper.updateById(existing);
+                    success++;
+                } else {
+                    SysUser u = new SysUser();
+                    u.setUsername(uname);
+                    u.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
+                    u.setRealName(v.getNickname());
+                    u.setPhone(v.getMobile());
+                    u.setEmail(v.getEmail());
+                    u.setStatus(v.getStatusText() != null && "禁用".equals(v.getStatusText()) ? 0 : 1);
+                    u.setSex(1);
+                    sysUserMapper.insert(u);
+                    success++;
+                }
+            }
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("successCount", success);
+            result.put("failureCount", failure);
+            result.put("failureUsernames", failureUsernames);
+            return R.ok(result);
+        } catch (Exception e) {
+            return R.fail("导入失败：" + e.getMessage());
+        }
+    }
+
+    /** 通用：把 Excel 数据写入响应流（浏览器下载） */
+    private void writeExcel(HttpServletResponse response, String fileName, List<UserExcelVO> list)
+            throws IOException {
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        String encoded = URLEncoder.encode(fileName, "UTF-8").replaceAll("\\+", "%20");
+        response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + encoded + ".xlsx");
+        EasyExcel.write(response.getOutputStream(), UserExcelVO.class)
+                .sheet("用户数据")
+                .doWrite(list);
+    }
+
+    /** 用户导入/导出 Excel 行模型 */
+    @Data
+    public static class UserExcelVO {
+        @ExcelProperty("用户名称")
+        private String username;
+        @ExcelProperty("用户昵称")
+        private String nickname;
+        @ExcelProperty("手机号码")
+        private String mobile;
+        @ExcelProperty("用户邮箱")
+        private String email;
+        @ExcelProperty("账号状态")
+        private String statusText;
     }
 }
