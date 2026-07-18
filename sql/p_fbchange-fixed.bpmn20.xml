@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" id="diagram_p_fbchange" targetNamespace="http://flowable.org/bpmn">
+  <bpmn2:process id="p_fbchange" name="分包计划变更流程" isExecutable="true">
+    <bpmn2:startEvent id="Event_0egj6dk">
+      <bpmn2:outgoing>Flow_02mfj1f</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:userTask id="Activity_0iwctmk" name="提交">
+      <bpmn2:incoming>Flow_02mfj1f</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_0bf90ip</bpmn2:outgoing>
+    </bpmn2:userTask>
+    <bpmn2:sequenceFlow id="Flow_02mfj1f" sourceRef="Event_0egj6dk" targetRef="Activity_0iwctmk" />
+    <bpmn2:userTask id="Activity_196iy0w" name="审核">
+      <bpmn2:extensionElements>
+        <flowable:candidateStrategy>35</flowable:candidateStrategy>
+        <flowable:candidateParam></flowable:candidateParam>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_0bf90ip</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_1nxldha</bpmn2:outgoing>
+    </bpmn2:userTask>
+    <bpmn2:sequenceFlow id="Flow_0bf90ip" sourceRef="Activity_0iwctmk" targetRef="Activity_196iy0w" />
+    <bpmn2:userTask id="Activity_0mc5im0" name="审批">
+      <bpmn2:extensionElements>
+        <flowable:candidateStrategy>35</flowable:candidateStrategy>
+        <flowable:candidateParam></flowable:candidateParam>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_1nxldha</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_1yuela1</bpmn2:outgoing>
+    </bpmn2:userTask>
+    <bpmn2:sequenceFlow id="Flow_1nxldha" sourceRef="Activity_196iy0w" targetRef="Activity_0mc5im0" />
+    <bpmn2:endEvent id="Event_09emhq5">
+      <bpmn2:incoming>Flow_1yuela1</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="Flow_1yuela1" sourceRef="Activity_0mc5im0" targetRef="Event_09emhq5" />
+  </bpmn2:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="p_fbchange_di" bpmnElement="p_fbchange">
+      <bpmndi:BPMNShape id="Event_0egj6dk_di" bpmnElement="Event_0egj6dk">
+        <dc:Bounds x="212" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0iwctmk_di" bpmnElement="Activity_0iwctmk">
+        <dc:Bounds x="300" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_196iy0w_di" bpmnElement="Activity_196iy0w">
+        <dc:Bounds x="460" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0mc5im0_di" bpmnElement="Activity_0mc5im0">
+        <dc:Bounds x="620" y="210" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_09emhq5_di" bpmnElement="Event_09emhq5">
+        <dc:Bounds x="782" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_02mfj1f_di" bpmnElement="Flow_02mfj1f">
+        <di:waypoint x="248" y="250" />
+        <di:waypoint x="300" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0bf90ip_di" bpmnElement="Flow_0bf90ip">
+        <di:waypoint x="400" y="250" />
+        <di:waypoint x="460" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1nxldha_di" bpmnElement="Flow_1nxldha">
+        <di:waypoint x="560" y="250" />
+        <di:waypoint x="620" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1yuela1_di" bpmnElement="Flow_1yuela1">
+        <di:waypoint x="720" y="250" />
+        <di:waypoint x="782" y="250" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>
