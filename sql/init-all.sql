@@ -384,32 +384,44 @@ CREATE TABLE IF NOT EXISTS `resource_plan_safety` (
     INDEX idx_project_id (project_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '安全用品计划表';
 
--- 分包队伍计划表 (含phase6字段)
+-- 分包计划表 (按截图字段)
 CREATE TABLE IF NOT EXISTS `resource_plan_subcontract` (
-    `id`                    BIGINT AUTO_INCREMENT PRIMARY KEY,
-    `plan_name`             VARCHAR(200)  NOT NULL,
-    `project_id`            BIGINT        NOT NULL,
-    `wbs_code`              VARCHAR(50)   NULL,
-    `wbs_name`              VARCHAR(200)  NULL,
-    `subcontract_type`      VARCHAR(50)   NULL COMMENT '分包类型',
-    `supplier_code`         VARCHAR(50)   NULL,
-    `supplier_name`         VARCHAR(200)  NULL,
-    `contract_amount`       DECIMAL(15,2) NULL COMMENT '合同金额',
-    `planned_start_date`    DATE          NULL,
-    `planned_end_date`      DATE          NULL,
-    `actual_start_date`     DATE          NULL,
-    `actual_end_date`       DATE          NULL,
-    `status`                VARCHAR(50)   DEFAULT 'DRAFT' COMMENT '状态(DRAFT/SUBMITTED/IN_PROGRESS/COMPLETED/TERMINATED)',
-    `approval_status`       VARCHAR(50)   DEFAULT 'DRAFT' COMMENT '审批状态(DRAFT/SUBMITTED/APPROVED/REJECTED)',
-    `process_instance_id`    VARCHAR(100)  NULL COMMENT 'Flowable流程实例ID',
-    `remark`                TEXT          NULL,
-    `create_time`           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `update_time`           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    `deleted`               TINYINT       NOT NULL DEFAULT 0,
+    `id`                      BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `project_id`              BIGINT        NOT NULL,
+    `project_name`            VARCHAR(200)  NULL COMMENT '项目名称（冗余存储）',
+    `specialty_engineering`   VARCHAR(200)  NULL COMMENT '专业工程',
+    `subcontract_name`        VARCHAR(200)  NOT NULL,
+    `subcontract_mode`        VARCHAR(100)  NULL COMMENT '分包模式',
+    `team_source`             VARCHAR(100)  NULL COMMENT '分包队伍来源',
+    `latest_entry_date`       DATE          NULL COMMENT '最晚进场日期（与总进度计划相符）',
+    `actual_entry_date`       DATE          NULL COMMENT '实际进场日期（按招标进度推算）',
+    `start_prepare_bid_date`  DATE          NULL COMMENT '开始编制招标文件日期',
+    `actual_bid_date`         DATE          NULL COMMENT '实际招标日期',
+    `planned_online_bid_date` DATE        NULL COMMENT '挂网招标日期',
+    `actual_online_bid_date`  DATE         NULL COMMENT '实际挂网日期',
+    `planned_award_date`      DATE          NULL COMMENT '定标日期',
+    `actual_award_date`       DATE          NULL COMMENT '实际定标日期',
+    `mobilization_period`     INT           NULL COMMENT '动员期（天）',
+    `wbs_code`                VARCHAR(50)   NULL,
+    `wbs_name`                VARCHAR(200)  NULL,
+    `work_content`            TEXT          NULL,
+    `supplier_code`           VARCHAR(50)   NULL,
+    `supplier_name`           VARCHAR(200)  NULL,
+    `plan_start_date`         DATE          NULL,
+    `plan_end_date`           DATE          NULL,
+    `actual_start_date`       DATE          NULL,
+    `actual_end_date`         DATE          NULL,
+    `status`                  VARCHAR(50)   DEFAULT 'DRAFT' COMMENT '状态(DRAFT/SUBMITTED/IN_PROGRESS/COMPLETED/TERMINATED)',
+    `approval_status`         VARCHAR(50)   DEFAULT 'DRAFT' COMMENT '审批状态(DRAFT/SUBMITTED/APPROVED/REJECTED)',
+    `process_instance_id`     VARCHAR(100)  NULL COMMENT 'Flowable流程实例ID',
+    `remark`                  TEXT          NULL,
+    `create_time`             DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time`             DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted`                 TINYINT       NOT NULL DEFAULT 0,
     INDEX idx_project_id (project_id),
     INDEX idx_status (status),
     INDEX idx_approval_status (approval_status)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '分包队伍计划表';
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '分包计划表';
 
 -- 劳动力计划表 (含phase6字段)
 CREATE TABLE IF NOT EXISTS `resource_plan_labor` (

@@ -2,9 +2,10 @@
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 import type { ResourcePlanSubcontract } from '#/api/rpw/resource-plan';
 
-import { DocAlert, Page, useVbenModal } from '@vben/common-ui';
+import { Page } from '@vben/common-ui';
+import { useVbenModal } from '#/components/modal';
 
-import { message } from 'ant-design-vue';
+import { message } from 'antdv-next';
 
 import { ACTION_ICON, TableAction, useVbenVxeGrid } from '#/adapter/vxe-table';
 import { subcontractApi } from '#/api/rpw/resource-plan';

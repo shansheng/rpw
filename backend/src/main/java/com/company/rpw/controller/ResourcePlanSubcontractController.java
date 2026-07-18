@@ -25,32 +25,27 @@ public class ResourcePlanSubcontractController {
      * 查询分包计划列表
      * GET /api/v1/resource-plan/subcontract/list
      * @param projectId 项目ID（可选）
+     * @param projectName 项目名称（可选，模糊匹配）
+     * @param specialtyEngineering 专业工程（可选，模糊匹配）
+     * @param subcontractName 分包名称（可选，模糊匹配）
+     * @param subcontractMode 分包模式（可选）
+     * @param teamSource 分包队伍来源（可选）
      * @param status 状态（可选）
      * @param wbsCode WBS编码（可选，模糊匹配）
-     * @param subcontractName 分包名称（可选，模糊匹配）
      * @return 分包计划列表
      */
     @GetMapping("/list")
     public R<List<ResourcePlanSubcontract>> list(
             @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) String projectName,
+            @RequestParam(required = false) String specialtyEngineering,
+            @RequestParam(required = false) String subcontractName,
+            @RequestParam(required = false) String subcontractMode,
+            @RequestParam(required = false) String teamSource,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String wbsCode,
-            @RequestParam(required = false) String subcontractName) {
-        var query = service.lambdaQuery()
-                .eq(ResourcePlanSubcontract::getDeleted, 0);
-        if (projectId != null) {
-            query.eq(ResourcePlanSubcontract::getProjectId, projectId);
-        }
-        if (status != null && !status.isEmpty()) {
-            query.eq(ResourcePlanSubcontract::getStatus, status);
-        }
-        if (wbsCode != null && !wbsCode.isEmpty()) {
-            query.like(ResourcePlanSubcontract::getWbsCode, wbsCode);
-        }
-        if (subcontractName != null && !subcontractName.isEmpty()) {
-            query.like(ResourcePlanSubcontract::getSubcontractName, subcontractName);
-        }
-        return R.ok(query.list());
+            @RequestParam(required = false) String wbsCode) {
+        return R.ok(service.listByParams(projectId, projectName, specialtyEngineering,
+                subcontractName, subcontractMode, teamSource, status, wbsCode));
     }
 
     /**

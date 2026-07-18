@@ -164,6 +164,8 @@ public class SystemAuthAdapterController {
         userMap.put("homePath", "/dashboard");
         userMap.put("roles", roleCodes);
         userMap.put("permissions", permissions);
+        userMap.put("orgId", user.getOrgId());
+        userMap.put("deptId", user.getOrgId());
 
         Map<String, Object> data = new HashMap<>();
         data.put("user", userMap);

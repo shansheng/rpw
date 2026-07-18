@@ -2,7 +2,7 @@
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 import type { ResourcePlanSubcontract } from '#/api/rpw/resource-plan';
 
-import { DocAlert, Page } from '@vben/common-ui';
+import { Page } from '@vben/common-ui';
 import { useVbenModal } from '#/components/modal';
 
 import { message } from 'antdv-next';

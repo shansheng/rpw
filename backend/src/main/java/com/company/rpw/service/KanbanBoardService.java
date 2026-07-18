@@ -156,7 +156,7 @@ public class KanbanBoardService {
      * 构建分包计划卡片
      */
     private void buildSubcontractCards(Long projectId, List<KanbanColumnVO> columns) {
-        var subcontracts = subcontractService.listByParams(projectId, null, null, null);
+        var subcontracts = subcontractService.listByParams(projectId, null, null, null, null, null, null, null);
         for (var subcontract : subcontracts) {
             KanbanCardVO card = new KanbanCardVO();
             card.setId(subcontract.getId());

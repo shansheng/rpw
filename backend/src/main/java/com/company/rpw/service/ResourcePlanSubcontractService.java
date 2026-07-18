@@ -6,6 +6,7 @@ import com.company.rpw.mapper.ResourcePlanSubcontractMapper;
 import com.company.rpw.dto.subcontract.ChangeRecordVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -24,33 +25,55 @@ public class ResourcePlanSubcontractService extends ServiceImpl<ResourcePlanSubc
 public boolean create(ResourcePlanSubcontract entity) {
     entity.setStatus("DRAFT");
     entity.setApprovalStatus("DRAFT");
+    // plan_name 与分包名称保持一致（兼容旧表结构）
+    if (entity.getSubcontractName() != null) {
+        entity.setPlanName(entity.getSubcontractName());
+    }
+    // 实际招标/挂网/定标日期在新增时保持为空，由后续进展登记填充
     return save(entity);
 }
 
 /**
  * 根据条件查询分包计划列表
  * @param projectId 项目ID（可选）
+ * @param projectName 项目名称（可选，模糊匹配）
+ * @param specialtyEngineering 专业工程（可选，模糊匹配）
+ * @param subcontractName 分包名称（可选，模糊匹配）
+ * @param subcontractMode 分包模式（可选）
+ * @param teamSource 分包队伍来源（可选）
  * @param status 状态（可选）
  * @param wbsCode WBS编码（可选，模糊匹配）
- * @param subcontractName 分包名称（可选，模糊匹配）
  * @return 分包计划列表
  */
-public List<ResourcePlanSubcontract> listByParams(Long projectId, String status, String wbsCode, String subcontractName) {
+public List<ResourcePlanSubcontract> listByParams(Long projectId, String projectName, String specialtyEngineering,
+        String subcontractName, String subcontractMode, String teamSource, String status, String wbsCode) {
     var query = lambdaQuery().eq(ResourcePlanSubcontract::getDeleted, 0);
-    
+
     if (projectId != null) {
         query = query.eq(ResourcePlanSubcontract::getProjectId, projectId);
     }
-    if (status != null && !status.isEmpty()) {
-        query = query.eq(ResourcePlanSubcontract::getStatus, status);
+    if (StringUtils.hasText(projectName)) {
+        query = query.like(ResourcePlanSubcontract::getProjectName, projectName);
     }
-    if (wbsCode != null && !wbsCode.isEmpty()) {
-        query = query.like(ResourcePlanSubcontract::getWbsCode, wbsCode);
+    if (StringUtils.hasText(specialtyEngineering)) {
+        query = query.like(ResourcePlanSubcontract::getSpecialtyEngineering, specialtyEngineering);
     }
-    if (subcontractName != null && !subcontractName.isEmpty()) {
+    if (StringUtils.hasText(subcontractName)) {
         query = query.like(ResourcePlanSubcontract::getSubcontractName, subcontractName);
     }
-    
+    if (StringUtils.hasText(subcontractMode)) {
+        query = query.eq(ResourcePlanSubcontract::getSubcontractMode, subcontractMode);
+    }
+    if (StringUtils.hasText(teamSource)) {
+        query = query.eq(ResourcePlanSubcontract::getTeamSource, teamSource);
+    }
+    if (StringUtils.hasText(status)) {
+        query = query.eq(ResourcePlanSubcontract::getStatus, status);
+    }
+    if (StringUtils.hasText(wbsCode)) {
+        query = query.like(ResourcePlanSubcontract::getWbsCode, wbsCode);
+    }
+
     return query.list();
 }
 
@@ -62,6 +85,10 @@ public List<ResourcePlanSubcontract> listByParams(Long projectId, String status,
      */
     public boolean updatePlan(Long id, ResourcePlanSubcontract entity) {
         entity.setId(id);
+        // plan_name 与分包名称保持一致（兼容旧表结构）
+        if (entity.getSubcontractName() != null) {
+            entity.setPlanName(entity.getSubcontractName());
+        }
         return updateById(entity);
     }
 
@@ -110,7 +137,7 @@ public List<ResourcePlanSubcontract> listByParams(Long projectId, String status,
         if (entity == null) {
             return false;
         }
-        
+
         if (actualStartDate != null) {
             entity.setActualStartDate(actualStartDate);
             // 实际开始日期填写后，状态改为进行中
@@ -118,13 +145,13 @@ public List<ResourcePlanSubcontract> listByParams(Long projectId, String status,
                 entity.setStatus("IN_PROGRESS");
             }
         }
-        
+
         if (actualEndDate != null) {
             entity.setActualEndDate(actualEndDate);
             // 实际结束日期填写后，状态改为已完成
             entity.setStatus("COMPLETED");
         }
-        
+
         return updateById(entity);
     }
 

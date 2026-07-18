@@ -131,8 +131,22 @@ export interface ResourcePlanCirculation {
 export interface ResourcePlanSubcontract {
   id?: number;
   projectId?: number;
-  wbsName?: string;
+  projectName?: string;
+  specialtyEngineering?: string;
   subcontractName?: string;
+  subcontractMode?: string;
+  teamSource?: string;
+  latestEntryDate?: string;
+  actualEntryDate?: string;
+  startPrepareBidDate?: string;
+  actualBidDate?: string;
+  plannedOnlineBidDate?: string;
+  actualOnlineBidDate?: string;
+  plannedAwardDate?: string;
+  actualAwardDate?: string;
+  mobilizationPeriod?: number;
+  wbsCode?: string;
+  wbsName?: string;
   workContent?: string;
   supplierCode?: string;
   supplierName?: string;

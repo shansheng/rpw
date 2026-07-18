@@ -16,104 +16,146 @@ export function useFormSchema(_formApi?: VbenFormApi): VbenFormSchema[] {
     },
     {
       fieldName: 'projectId',
-      label: '项目ID',
+      label: '项目',
       component: 'InputNumber',
       componentProps: {
         class: '!w-full',
         min: 0,
+        disabled: true,
       },
-      rules: z.number().min(1, '项目ID不能为空'),
+      rules: z.number().min(1, '请选择项目'),
     },
     {
-      fieldName: 'wbsName',
-      label: 'WBS名称',
+      fieldName: 'projectName',
+      label: '项目名称',
       component: 'Input',
       componentProps: {
-        maxLength: 100,
-        placeholder: '请输入WBS名称',
+        maxLength: 200,
+        placeholder: '点击选择项目',
+        readonly: true,
+        class: 'cursor-pointer',
       },
+    },
+    {
+      fieldName: 'specialtyEngineering',
+      label: '专业工程',
+      component: 'Input',
+      componentProps: {
+        maxLength: 200,
+        placeholder: '请输入专业工程',
+      },
+      rules: z.string().min(1, '专业工程不能为空').max(200),
     },
     {
       fieldName: 'subcontractName',
       label: '分包名称',
       component: 'Input',
       componentProps: {
-        maxLength: 100,
+        maxLength: 200,
         placeholder: '请输入分包名称',
       },
-      rules: z.string().min(1, '分包名称不能为空').max(100),
+      rules: z.string().min(1, '分包名称不能为空').max(200),
     },
     {
-      fieldName: 'workContent',
-      label: '工作内容',
-      component: 'Textarea',
-      componentProps: {
-        maxLength: 255,
-        placeholder: '请输入工作内容',
-        rows: 3,
-      },
-    },
-    {
-      fieldName: 'supplierCode',
-      label: '供应商编码',
-      component: 'Input',
-      componentProps: {
-        maxLength: 50,
-        placeholder: '请输入供应商编码',
-      },
-    },
-    {
-      fieldName: 'supplierName',
-      label: '供应商名称',
+      fieldName: 'subcontractMode',
+      label: '分包模式',
       component: 'Input',
       componentProps: {
         maxLength: 100,
-        placeholder: '请输入供应商名称',
+        placeholder: '请输入分包模式',
       },
     },
     {
-      fieldName: 'planStartDate',
-      label: '计划开始日期',
-      component: 'DatePicker',
-      componentProps: {
-        class: '!w-full',
-        valueFormat: 'YYYY-MM-DD',
-      },
-    },
-    {
-      fieldName: 'planEndDate',
-      label: '计划结束日期',
-      component: 'DatePicker',
-      componentProps: {
-        class: '!w-full',
-        valueFormat: 'YYYY-MM-DD',
-      },
-    },
-    {
-      fieldName: 'actualStartDate',
-      label: '实际开始日期',
-      component: 'DatePicker',
-      componentProps: {
-        class: '!w-full',
-        valueFormat: 'YYYY-MM-DD',
-      },
-    },
-    {
-      fieldName: 'actualEndDate',
-      label: '实际结束日期',
-      component: 'DatePicker',
-      componentProps: {
-        class: '!w-full',
-        valueFormat: 'YYYY-MM-DD',
-      },
-    },
-    {
-      fieldName: 'approvalStatus',
-      label: '审批状态',
+      fieldName: 'teamSource',
+      label: '分包队伍来源',
       component: 'Input',
       componentProps: {
-        maxLength: 20,
-        placeholder: '请输入审批状态',
+        maxLength: 100,
+        placeholder: '请输入分包队伍来源',
+      },
+    },
+    {
+      fieldName: 'latestEntryDate',
+      label: '最晚进场日期',
+      component: 'DatePicker',
+      componentProps: {
+        class: '!w-full',
+        valueFormat: 'YYYY-MM-DD',
+        placeholder: '与总进度计划相符',
+      },
+    },
+    {
+      fieldName: 'actualEntryDate',
+      label: '实际进场日期',
+      component: 'DatePicker',
+      componentProps: {
+        class: '!w-full',
+        valueFormat: 'YYYY-MM-DD',
+        placeholder: '按招标进度推算',
+      },
+    },
+    {
+      fieldName: 'startPrepareBidDate',
+      label: '开始编制招标文件日期',
+      component: 'DatePicker',
+      componentProps: {
+        class: '!w-full',
+        valueFormat: 'YYYY-MM-DD',
+      },
+    },
+    {
+      fieldName: 'actualBidDate',
+      label: '实际招标日期',
+      component: 'DatePicker',
+      componentProps: {
+        class: '!w-full',
+        valueFormat: 'YYYY-MM-DD',
+      },
+    },
+    {
+      fieldName: 'plannedOnlineBidDate',
+      label: '挂网招标日期',
+      component: 'DatePicker',
+      componentProps: {
+        class: '!w-full',
+        valueFormat: 'YYYY-MM-DD',
+      },
+    },
+    {
+      fieldName: 'actualOnlineBidDate',
+      label: '实际挂网日期',
+      component: 'DatePicker',
+      componentProps: {
+        class: '!w-full',
+        valueFormat: 'YYYY-MM-DD',
+      },
+    },
+    {
+      fieldName: 'plannedAwardDate',
+      label: '定标日期',
+      component: 'DatePicker',
+      componentProps: {
+        class: '!w-full',
+        valueFormat: 'YYYY-MM-DD',
+      },
+    },
+    {
+      fieldName: 'actualAwardDate',
+      label: '实际定标日期',
+      component: 'DatePicker',
+      componentProps: {
+        class: '!w-full',
+        valueFormat: 'YYYY-MM-DD',
+      },
+    },
+    {
+      fieldName: 'mobilizationPeriod',
+      label: '动员期（天）',
+      component: 'InputNumber',
+      componentProps: {
+        class: '!w-full',
+        min: 0,
+        placeholder: '请输入动员期天数',
       },
     },
     {
@@ -121,7 +163,7 @@ export function useFormSchema(_formApi?: VbenFormApi): VbenFormSchema[] {
       label: '备注',
       component: 'Textarea',
       componentProps: {
-        maxLength: 255,
+        maxLength: 500,
         placeholder: '请输入备注',
         rows: 3,
       },
@@ -133,21 +175,21 @@ export function useFormSchema(_formApi?: VbenFormApi): VbenFormSchema[] {
 export function useGridFormSchema(): VbenFormSchema[] {
   return [
     {
-      fieldName: 'projectId',
-      label: '项目ID',
-      component: 'InputNumber',
-      componentProps: {
-        allowClear: true,
-        placeholder: '请输入项目ID',
-      },
-    },
-    {
-      fieldName: 'wbsName',
-      label: 'WBS名称',
+      fieldName: 'projectName',
+      label: '项目名称',
       component: 'Input',
       componentProps: {
         allowClear: true,
-        placeholder: '请输入WBS名称',
+        placeholder: '请输入项目名称',
+      },
+    },
+    {
+      fieldName: 'specialtyEngineering',
+      label: '专业工程',
+      component: 'Input',
+      componentProps: {
+        allowClear: true,
+        placeholder: '请输入专业工程',
       },
     },
     {
@@ -160,12 +202,37 @@ export function useGridFormSchema(): VbenFormSchema[] {
       },
     },
     {
-      fieldName: 'approvalStatus',
-      label: '审批状态',
+      fieldName: 'subcontractMode',
+      label: '分包模式',
       component: 'Input',
       componentProps: {
         allowClear: true,
-        placeholder: '请输入审批状态',
+        placeholder: '请输入分包模式',
+      },
+    },
+    {
+      fieldName: 'teamSource',
+      label: '分包队伍来源',
+      component: 'Input',
+      componentProps: {
+        allowClear: true,
+        placeholder: '请输入分包队伍来源',
+      },
+    },
+    {
+      fieldName: 'status',
+      label: '状态',
+      component: 'Select',
+      componentProps: {
+        allowClear: true,
+        placeholder: '请选择状态',
+        options: [
+          { label: '草稿', value: 'DRAFT' },
+          { label: '已提交', value: 'SUBMITTED' },
+          { label: '进行中', value: 'IN_PROGRESS' },
+          { label: '已完成', value: 'COMPLETED' },
+          { label: '已终止', value: 'TERMINATED' },
+        ],
       },
     },
   ];
@@ -175,14 +242,19 @@ export function useGridFormSchema(): VbenFormSchema[] {
 export function useGridColumns(): VxeTableGridOptions['columns'] {
   return [
     {
-      field: 'projectId',
-      title: '项目ID',
-      minWidth: 100,
+      type: 'seq',
+      title: '序号',
+      width: 60,
     },
     {
-      field: 'wbsName',
-      title: 'WBS名称',
+      field: 'projectName',
+      title: '项目名称',
       minWidth: 160,
+    },
+    {
+      field: 'specialtyEngineering',
+      title: '专业工程',
+      minWidth: 140,
     },
     {
       field: 'subcontractName',
@@ -190,55 +262,64 @@ export function useGridColumns(): VxeTableGridOptions['columns'] {
       minWidth: 160,
     },
     {
-      field: 'workContent',
-      title: '工作内容',
-      minWidth: 200,
-    },
-    {
-      field: 'supplierCode',
-      title: '供应商编码',
-      minWidth: 140,
-    },
-    {
-      field: 'supplierName',
-      title: '供应商名称',
-      minWidth: 160,
-    },
-    {
-      field: 'planStartDate',
-      title: '计划开始',
-      width: 120,
-    },
-    {
-      field: 'planEndDate',
-      title: '计划结束',
-      width: 120,
-    },
-    {
-      field: 'actualStartDate',
-      title: '实际开始',
-      width: 120,
-    },
-    {
-      field: 'actualEndDate',
-      title: '实际结束',
-      width: 120,
-    },
-    {
-      field: 'approvalStatus',
-      title: '审批状态',
+      field: 'subcontractMode',
+      title: '分包模式',
       minWidth: 120,
+    },
+    {
+      field: 'teamSource',
+      title: '分包队伍来源',
+      minWidth: 120,
+    },
+    {
+      field: 'latestEntryDate',
+      title: '最晚进场日期（与总进度计划相符）',
+      width: 160,
+    },
+    {
+      field: 'actualEntryDate',
+      title: '实际进场日期（按招标进度推算）',
+      width: 160,
+    },
+    {
+      field: 'startPrepareBidDate',
+      title: '开始编制招标文件日期',
+      width: 160,
+    },
+    {
+      field: 'actualBidDate',
+      title: '实际招标日期',
+      width: 120,
+    },
+    {
+      field: 'plannedOnlineBidDate',
+      title: '挂网招标日期',
+      width: 120,
+    },
+    {
+      field: 'actualOnlineBidDate',
+      title: '实际挂网日期',
+      width: 120,
+    },
+    {
+      field: 'plannedAwardDate',
+      title: '定标日期',
+      width: 120,
+    },
+    {
+      field: 'actualAwardDate',
+      title: '实际定标日期',
+      width: 120,
+    },
+    {
+      field: 'mobilizationPeriod',
+      title: '动员期（天）',
+      width: 100,
     },
     {
       field: 'remark',
       title: '备注',
-      minWidth: 200,
-    },
-    {
-      field: 'createTime',
-      title: '创建时间',
-      width: 180,
-      formatter: 'formatDateTime',
+      minWidth: 160,
     },
     {
       title: '操作',
