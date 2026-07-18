@@ -35,7 +35,7 @@ public class OrganizationDataInitializer {
     private static final String[] DEPENDENT_TABLES = {
             "resource_plan_labor", "resource_plan_material", "resource_plan_equipment",
             "resource_plan_hardware", "resource_plan_office", "resource_plan_safety",
-            "resource_plan_circulation", "resource_plan_subcontract", "warning_record",
+            "resource_plan_circulation", "warning_record",
     };
 
     @PostConstruct
