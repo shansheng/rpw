@@ -63,7 +63,6 @@ const selectedPlan = ref<ResourcePlanSubcontract | null>(null);
 
 // ===== 明细 =====
 const details = ref<SubcontractChangeDetail[]>([]);
-const editingDetailIndex = ref(-1);
 
 // ===== 弹窗可见性 =====
 const orgModalVisible = ref(false);
@@ -104,28 +103,30 @@ function onPlanSelect(plan: ResourcePlanSubcontract) {
   message.success(`已选择分包计划：${plan.subcontractName}`);
 }
 
-// ===== 明细：日期类型选择 =====
-function openDateType(index: number) {
+// ===== 明细：日期类型多选插入 =====
+function openDateTypeModal() {
   if (!selectedPlan.value) {
     message.warning('请先选择分包计划');
     return;
   }
-  editingDetailIndex.value = index;
   dateTypeModalVisible.value = true;
 }
 
-function onDateTypeSelect(payload: { dateType: number; originalDate: string | undefined }) {
-  const i = editingDetailIndex.value;
-  if (i < 0 || i >= details.value.length) return;
-  details.value[i] = {
-    ...details.value[i],
-    dateType: payload.dateType,
-    originalDate: payload.originalDate,
-  };
-}
-
-function addDetail() {
-  details.value.push({ dateType: undefined, originalDate: undefined, adjustedDate: undefined });
+/** 选中多个日期类型，按所选类型插入明细；明细中已存在的类型忽略 */
+function onDateTypeSelect(payload: { dateTypes: number[] }) {
+  const existing = new Set(details.value.map((d) => d.dateType));
+  for (const t of payload.dateTypes) {
+    if (existing.has(t)) continue; // 明细中已有的类型忽略
+    const option = DATE_TYPE_OPTIONS.find((o) => o.value === t);
+    const originalDate = option
+      ? ((selectedPlan.value as any)?.[option.field] as string | undefined)
+      : undefined;
+    details.value.push({
+      dateType: t,
+      originalDate,
+      adjustedDate: undefined,
+    });
+  }
 }
 
 function removeDetail(index: number) {
@@ -316,7 +317,7 @@ onMounted(async () => {
 
         <Card title="变更明细" class="mt-4 w-full">
           <template #extra>
-            <Button type="primary" @click="addDetail">
+            <Button type="primary" @click="openDateTypeModal">
               <IconifyIcon icon="lucide:plus" />
               新增明细
             </Button>
@@ -328,14 +329,12 @@ onMounted(async () => {
               :pagination="false"
               :row-key="(record: any, index: number) => index"
               size="small"
-              :locale="{ emptyText: '请点击「新增明细」，再选择日期类型' }"
+              :locale="{ emptyText: '请点击「新增明细」选择日期类型' }"
             >
               <template #bodyCell="{ column, index }">
                 <template v-if="column.key === 'seq'">{{ (index as number) + 1 }}</template>
                 <template v-else-if="column.key === 'dateType'">
-                  <Button type="link" @click="openDateType(index as number)">
-                    {{ dateTypeLabel(details[index as number]?.dateType) }}
-                  </Button>
+                  {{ dateTypeLabel(details[index as number]?.dateType) }}
                 </template>
                 <template v-else-if="column.key === 'originalDate'">
                   {{ details[index as number]?.originalDate || '—' }}
@@ -385,6 +384,7 @@ onMounted(async () => {
     <DateTypeModal
       v-model:visible="dateTypeModalVisible"
       :plan="selectedPlan"
+      :existing-types="details.map((d) => d.dateType as number)"
       @select="onDateTypeSelect"
     />
   </Page>
