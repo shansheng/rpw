@@ -89,7 +89,7 @@ export function useFormSchema(): VbenFormSchema[] {
     {
       fieldName: 'changeReason',
       label: '变更原因',
-      component: 'Textarea',
+      component: 'TextArea',
       componentProps: {
         maxLength: 255,
         rows: 3,

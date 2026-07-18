@@ -136,7 +136,7 @@ export function useFormSchema(_formApi?: VbenFormApi): VbenFormSchema[] {
     {
       fieldName: 'remark',
       label: '备注',
-      component: 'Textarea',
+      component: 'TextArea',
       componentProps: {
         maxLength: 255,
         placeholder: '请输入备注',

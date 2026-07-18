@@ -209,7 +209,7 @@ export function useHandleFormSchema(): VbenFormSchema[] {
     {
       fieldName: 'handleRemark',
       label: '处理备注',
-      component: 'TextArea',
+      component: 'Textarea',
       componentProps: {
         maxLength: 255,
         placeholder: '请输入处理备注',
