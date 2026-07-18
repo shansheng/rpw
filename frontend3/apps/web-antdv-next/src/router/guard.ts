@@ -111,6 +111,16 @@ function setupAccessGuard(router: Router) {
         if (authPermissionInfo) {
           userInfo = authPermissionInfo.user;
         }
+      } catch (error) {
+        // 拉取权限信息失败：本后端对未认证请求统一返回 HTTP 403（而非 401），而 vben 的
+        // authenticateResponseInterceptor 只处理 401，因此 403 会原样上抛导致导航失败、界面卡死。
+        // 这里清理登录态并跳登录页，让用户重新登录，而不是卡在白屏 / 反复 403。
+        console.warn('[guard] fetchUserInfo failed, redirect to login:', error);
+        accessStore.setAccessToken(null);
+        return {
+          path: LOGIN_PATH,
+          replace: true,
+        };
       } finally {
         loading();
       }

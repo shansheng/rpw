@@ -192,7 +192,21 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     }),
   );
 
-  // 通用的错误处理,如果没有进入上面的错误处理逻辑，就会进入这里
+  // 后端对未认证请求返回 HTTP 403（Spring Security 默认），而上方 authenticateResponseInterceptor 仅处理 401。
+  // 这里把「认证相关接口」的 403 也视为登录态失效，触发重新认证（清理 token 并跳转登录页），
+  // 覆盖「用着用着 token 过期」等场景，避免界面卡在反复 403。
+  client.addResponseInterceptor({
+    rejected: async (error: any) => {
+      const status = error?.response?.status;
+      const url = error?.config?.url ?? '';
+      if (status === 403 && url.includes('/system/auth/')) {
+        await doReAuthenticate();
+      }
+      throw error;
+    },
+  });
+
+  // 通用的错误处理,如果没有进入上面的处理逻辑，就会进入这里
   client.addResponseInterceptor(
     errorMessageResponseInterceptor((msg: string, error) => {
       // 这里可以根据业务进行定制,你可以拿到 error 内的信息进行定制化处理，根据不同的 code 做不同的提示，而不是直接使用 message.error 提示 msg
