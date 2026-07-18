@@ -1,13 +1,17 @@
 package com.company.rpw.service;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.company.rpw.entity.Organization;
 import com.company.rpw.entity.ResourcePlanSubcontract;
+import com.company.rpw.mapper.OrganizationMapper;
 import com.company.rpw.mapper.ResourcePlanSubcontractMapper;
 import com.company.rpw.dto.subcontract.ChangeRecordVO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -16,6 +20,9 @@ import java.util.List;
 @Slf4j
 @Service
 public class ResourcePlanSubcontractService extends ServiceImpl<ResourcePlanSubcontractMapper, ResourcePlanSubcontract> {
+
+    @Autowired
+    private OrganizationMapper organizationMapper;
 
 /**
  * 新增分包计划（草稿状态）
@@ -50,7 +57,10 @@ public List<ResourcePlanSubcontract> listByParams(Long projectId, String project
     var query = lambdaQuery().eq(ResourcePlanSubcontract::getDeleted, 0);
 
     if (projectId != null) {
-        query = query.eq(ResourcePlanSubcontract::getProjectId, projectId);
+        // 选中“项目部”节点时，也返回同公司下、同一工程家族的“工程”节点的分包计划。
+        // 组织树中“项目部”与“工程”是同级节点（均挂在公司下），通过名称归一化识别同一工程家族。
+        List<Long> projectIds = resolveProjectFamily(projectId);
+        query = query.in(ResourcePlanSubcontract::getProjectId, projectIds);
     }
     if (StringUtils.hasText(projectName)) {
         query = query.like(ResourcePlanSubcontract::getProjectName, projectName);
@@ -76,6 +86,36 @@ public List<ResourcePlanSubcontract> listByParams(Long projectId, String project
 
     return query.list();
 }
+
+    /**
+     * 解析“工程家族”的项目ID集合：以所选节点为基准，返回其本身以及同公司下、
+     * 归一化名称相同的所有 level-3 节点（即“项目部”与“工程”视为同一项目的不同节点）。
+     */
+    private List<Long> resolveProjectFamily(Long projectId) {
+        List<Long> result = new ArrayList<>();
+        result.add(projectId);
+        Organization self = organizationMapper.selectById(projectId);
+        if (self == null || self.getOrgLevel() == null || self.getOrgLevel() != 3 || self.getParentId() == null) {
+            return result;
+        }
+        // 项目部/工程 的直接父节点即为公司(level=2)
+        Long companyId = self.getParentId();
+        String base = projectBaseName(self.getOrgName());
+        List<Organization> siblings = organizationMapper.selectByParentId(companyId);
+        for (Organization s : siblings) {
+            if (s.getId() != null && s.getOrgLevel() != null && s.getOrgLevel() == 3
+                    && base.equals(projectBaseName(s.getOrgName()))) {
+                result.add(s.getId());
+            }
+        }
+        return result;
+    }
+
+    /** 名称归一化：去掉“公路”，并剥除末尾的“项目部/工程”，用于识别同一工程家族 */
+    private static String projectBaseName(String name) {
+        if (name == null) return "";
+        return name.replace("公路", "").replaceAll("(项目部|工程)$", "");
+    }
 
     /**
      * 修改分包计划
