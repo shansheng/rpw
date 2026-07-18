@@ -44,12 +44,12 @@ function handleEdit(row: WarningRuleApi.WarningRule) {
 /** 删除预警规则 */
 async function handleDelete(row: WarningRuleApi.WarningRule) {
   const hideLoading = message.loading({
-    content: $t('ui.actionMessage.deleting', [row.ruleName]),
+    content: $t('ui.actionMessage.deleting', [row.name]),
     duration: 0,
   });
   try {
     await deleteWarningRule(row.id!);
-    message.success($t('ui.actionMessage.deleteSuccess', [row.ruleName]));
+    message.success($t('ui.actionMessage.deleteSuccess', [row.name]));
     handleRefresh();
   } finally {
     hideLoading();
@@ -173,7 +173,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
               icon: ACTION_ICON.DELETE,
               auth: ['warning:rule:delete'],
               popConfirm: {
-                title: $t('ui.actionMessage.deleteConfirm', [row.ruleName]),
+                title: $t('ui.actionMessage.deleteConfirm', [row.name]),
                 confirm: handleDelete.bind(null, row),
               },
             },

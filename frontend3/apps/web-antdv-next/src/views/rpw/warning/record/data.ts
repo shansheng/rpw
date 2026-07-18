@@ -3,71 +3,78 @@ import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 
 import { z } from '#/adapter/form';
 
-/** 资源类型选项 */
-export const RESOURCE_TYPE_OPTIONS = [
-  { label: '物料', value: 'MATERIAL' },
-  { label: '设备', value: 'EQUIPMENT' },
-  { label: '五金', value: 'HARDWARE' },
-  { label: '流转', value: 'CIRCULATION' },
-  { label: '办公', value: 'OFFICE' },
-  { label: '安全', value: 'SAFETY' },
-  { label: '分包', value: 'SUBCONTRACT' },
-  { label: '劳务', value: 'LABOR' },
+import {
+  objectTypeLabel,
+  warningLevelMeta,
+} from '../rule/data';
+
+/** 预警对象类型选项 */
+export const OBJECT_TYPE_OPTIONS = [
+  { label: '分包计划', value: 'SUBCONTRACT' },
+  { label: '材料计划', value: 'MATERIAL' },
+  { label: '设备计划', value: 'EQUIPMENT' },
+  { label: '劳务计划', value: 'LABOR' },
+  { label: '五金计划', value: 'HARDWARE' },
+  { label: '周转材计划', value: 'CIRCULATION' },
+  { label: '办公用品计划', value: 'OFFICE' },
+  { label: '安全物资计划', value: 'SAFETY' },
 ];
 
-/** 预警级别选项 */
+/** 预警等级选项 */
 export const WARNING_LEVEL_OPTIONS = [
-  { label: '一般', value: 'GENERAL' },
-  { label: '重要', value: 'IMPORTANT' },
-  { label: '紧急', value: 'URGENT' },
+  { label: '红色预警', value: 'RED' },
+  { label: '橙色预警', value: 'ORANGE' },
+  { label: '黄色预警', value: 'YELLOW' },
 ];
 
-/** 处理状态选项 */
+/** 状态选项 */
 export const STATUS_OPTIONS = [
   { label: '待处理', value: 'PENDING' },
-  { label: '处理中', value: 'PROCESSING' },
   { label: '已解决', value: 'RESOLVED' },
   { label: '已忽略', value: 'IGNORED' },
 ];
 
-/** 处理操作选项 */
+/** 处理操作选项（仅允许置为已解决 / 已忽略） */
 export const HANDLE_STATUS_OPTIONS = [
-  { label: '处理中', value: 'PROCESSING' },
   { label: '已解决', value: 'RESOLVED' },
   { label: '已忽略', value: 'IGNORED' },
 ];
+
+/** 状态 -> 显示名 + 颜色 */
+export function statusMeta(value?: string): { label: string; color: string } {
+  switch (value) {
+    case 'PENDING':
+      return { label: '待处理', color: 'red' };
+    case 'RESOLVED':
+      return { label: '已解决', color: 'green' };
+    case 'IGNORED':
+      return { label: '已忽略', color: 'default' };
+    default:
+      return { label: value ?? '', color: 'default' };
+  }
+}
 
 /** 列表的搜索表单 */
 export function useGridFormSchema(): VbenFormSchema[] {
   return [
     {
-      fieldName: 'resourceType',
-      label: '资源类型',
+      fieldName: 'objectType',
+      label: '计划类型',
       component: 'Select',
       componentProps: {
         allowClear: true,
-        options: RESOURCE_TYPE_OPTIONS,
-        placeholder: '请选择资源类型',
-      },
-    },
-    {
-      fieldName: 'projectId',
-      label: '项目ID',
-      component: 'InputNumber',
-      componentProps: {
-        class: '!w-full',
-        min: 0,
-        placeholder: '请输入项目ID',
+        options: OBJECT_TYPE_OPTIONS,
+        placeholder: '请选择计划类型',
       },
     },
     {
       fieldName: 'warningLevel',
-      label: '预警级别',
+      label: '预警等级',
       component: 'Select',
       componentProps: {
         allowClear: true,
         options: WARNING_LEVEL_OPTIONS,
-        placeholder: '请选择预警级别',
+        placeholder: '请选择预警等级',
       },
     },
     {
@@ -78,6 +85,15 @@ export function useGridFormSchema(): VbenFormSchema[] {
         allowClear: true,
         options: STATUS_OPTIONS,
         placeholder: '请选择状态',
+      },
+    },
+    {
+      fieldName: 'planName',
+      label: '计划名称',
+      component: 'Input',
+      componentProps: {
+        allowClear: true,
+        placeholder: '请输入计划名称',
       },
     },
     {
@@ -112,42 +128,45 @@ export function useGridColumns(): VxeTableGridOptions['columns'] {
       type: 'checkbox',
     },
     {
-      field: 'ruleName',
-      title: '规则名称',
-      minWidth: 160,
+      field: 'planName',
+      title: '计划名称',
+      minWidth: 180,
     },
     {
-      field: 'resourceType',
-      title: '资源类型',
-      minWidth: 120,
-    },
-    {
-      field: 'projectId',
-      title: '项目ID',
-      width: 120,
-      align: 'center',
+      field: 'objectType',
+      title: '计划类型',
+      width: 140,
+      formatter: ({ cellValue }) => objectTypeLabel(cellValue as string),
     },
     {
       field: 'warningLevel',
-      title: '预警级别',
+      title: '预警等级',
       width: 120,
+      slots: {
+        default: ({ row }) => {
+          const m = warningLevelMeta(row.warningLevel);
+          return `<span style="color:${m.color === 'default' ? '#999' : m.color}">${m.label}</span>`;
+        },
+      },
+    },
+    {
+      field: 'reason',
+      title: '预警原因',
+      minWidth: 300,
     },
     {
       field: 'status',
       title: '状态',
-      width: 120,
-      formatter: ({ cellValue }) => {
-        const map: Record<string, string> = {
-          PENDING: '待处理',
-          PROCESSING: '处理中',
-          RESOLVED: '已解决',
-          IGNORED: '已忽略',
-        };
-        return map[cellValue as string] ?? cellValue;
+      width: 110,
+      slots: {
+        default: ({ row }) => {
+          const m = statusMeta(row.status);
+          return `<span style="color:${m.color === 'default' ? '#999' : m.color}">${m.label}</span>`;
+        },
       },
     },
     {
-      field: 'triggerTime',
+      field: 'triggeredTime',
       title: '触发时间',
       width: 180,
       formatter: 'formatDateTime',

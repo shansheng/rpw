@@ -1,6 +1,4 @@
 <script lang="ts" setup>
-import type { WarningRecordApi } from '#/api/rpw/warning/record';
-
 import { computed, ref } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
@@ -50,7 +48,11 @@ const [Modal, modalApi] = useVbenModal({
     };
     try {
       if (ids.value.length === 1) {
-        await handleWarningRecord(ids.value[0], data.status, data.handleRemark);
+        await handleWarningRecord(
+          ids.value[0]!,
+          data.status,
+          data.handleRemark,
+        );
       } else {
         await batchHandleWarningRecord(
           ids.value,

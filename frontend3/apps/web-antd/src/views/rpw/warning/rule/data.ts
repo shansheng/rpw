@@ -1,207 +1,71 @@
 import type { VbenFormSchema } from '#/adapter/form';
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 
-import { z } from '#/adapter/form';
-
-/** 资源类型选项 */
-export const RESOURCE_TYPE_OPTIONS = [
-  { label: '物料', value: 'MATERIAL' },
-  { label: '设备', value: 'EQUIPMENT' },
-  { label: '五金', value: 'HARDWARE' },
-  { label: '流转', value: 'CIRCULATION' },
-  { label: '办公', value: 'OFFICE' },
-  { label: '安全', value: 'SAFETY' },
-  { label: '分包', value: 'SUBCONTRACT' },
-  { label: '劳务', value: 'LABOR' },
+/** 预警对象类型选项 */
+export const OBJECT_TYPE_OPTIONS = [
+  { label: '分包计划', value: 'SUBCONTRACT' },
+  { label: '材料计划', value: 'MATERIAL' },
+  { label: '设备计划', value: 'EQUIPMENT' },
+  { label: '劳务计划', value: 'LABOR' },
+  { label: '五金计划', value: 'HARDWARE' },
+  { label: '周转材计划', value: 'CIRCULATION' },
+  { label: '办公用品计划', value: 'OFFICE' },
+  { label: '安全物资计划', value: 'SAFETY' },
 ];
 
-/** 阈值类型选项 */
-export const THRESHOLD_TYPE_OPTIONS = [
-  { label: '比率', value: 'RATE' },
-  { label: '日期', value: 'DATE' },
-  { label: '数量', value: 'QUANTITY' },
-];
-
-/** 预警级别选项 */
+/** 预警等级选项 */
 export const WARNING_LEVEL_OPTIONS = [
-  { label: '一般', value: 'GENERAL' },
-  { label: '重要', value: 'IMPORTANT' },
-  { label: '紧急', value: 'URGENT' },
+  { label: '红色预警', value: 'RED' },
+  { label: '橙色预警', value: 'ORANGE' },
+  { label: '黄色预警', value: 'YELLOW' },
 ];
 
-/** 检查频率选项 */
-export const CHECK_FREQUENCY_OPTIONS = [
-  { label: '实时', value: 'REALTIME' },
-  { label: '每日', value: 'DAILY' },
-  { label: '每周', value: 'WEEKLY' },
+/** 状态选项 */
+export const STATUS_OPTIONS = [
+  { label: '启用', value: 1 },
+  { label: '禁用', value: 0 },
 ];
 
-/** 新增/修改预警规则的表单 */
-export function useFormSchema(): VbenFormSchema[] {
-  return [
-    {
-      component: 'Input',
-      fieldName: 'id',
-      dependencies: {
-        triggerFields: [''],
-        show: () => false,
-      },
-    },
-    {
-      fieldName: 'ruleName',
-      label: '规则名称',
-      component: 'Input',
-      componentProps: {
-        maxLength: 50,
-        placeholder: '请输入规则名称',
-      },
-      rules: z.string().min(1, '规则名称不能为空').max(50),
-    },
-    {
-      fieldName: 'resourceType',
-      label: '资源类型',
-      component: 'Select',
-      componentProps: {
-        allowClear: true,
-        options: RESOURCE_TYPE_OPTIONS,
-        placeholder: '请选择资源类型',
-      },
-      rules: z.string().min(1, '资源类型不能为空'),
-    },
-    {
-      fieldName: 'projectId',
-      label: '项目ID',
-      component: 'InputNumber',
-      componentProps: {
-        class: '!w-full',
-        min: 0,
-        placeholder: '请输入项目ID',
-      },
-    },
-    {
-      fieldName: 'thresholdType',
-      label: '阈值类型',
-      component: 'Select',
-      componentProps: {
-        allowClear: true,
-        options: THRESHOLD_TYPE_OPTIONS,
-        placeholder: '请选择阈值类型',
-      },
-      rules: z.string().min(1, '阈值类型不能为空'),
-    },
-    {
-      fieldName: 'warningThreshold',
-      label: '预警阈值',
-      component: 'InputNumber',
-      componentProps: {
-        class: '!w-full',
-        placeholder: '请输入预警阈值',
-      },
-      rules: z.number().min(0, '预警阈值不能为空'),
-    },
-    {
-      fieldName: 'compareField',
-      label: '比较字段',
-      component: 'Input',
-      componentProps: {
-        maxLength: 50,
-        placeholder: '请输入比较字段',
-      },
-    },
-    {
-      fieldName: 'actualField',
-      label: '实际字段',
-      component: 'Input',
-      componentProps: {
-        maxLength: 50,
-        placeholder: '请输入实际字段',
-      },
-    },
-    {
-      fieldName: 'warningLevel',
-      label: '预警级别',
-      component: 'Select',
-      componentProps: {
-        allowClear: true,
-        options: WARNING_LEVEL_OPTIONS,
-        placeholder: '请选择预警级别',
-      },
-      rules: z.string().min(1, '预警级别不能为空'),
-    },
-    {
-      fieldName: 'checkFrequency',
-      label: '检查频率',
-      component: 'Select',
-      componentProps: {
-        allowClear: true,
-        options: CHECK_FREQUENCY_OPTIONS,
-        placeholder: '请选择检查频率',
-      },
-      rules: z.string().min(1, '检查频率不能为空'),
-    },
-    {
-      fieldName: 'enabled',
-      label: '是否启用',
-      component: 'Switch',
-      componentProps: {
-        checkedValue: 1,
-        unCheckedValue: 0,
-      },
-      rules: z.number().default(1),
-    },
-    {
-      fieldName: 'notifyWecom',
-      label: '企业微信通知',
-      component: 'Switch',
-      componentProps: {
-        checkedValue: 1,
-        unCheckedValue: 0,
-      },
-      rules: z.number().default(0),
-    },
-    {
-      fieldName: 'notifyUsers',
-      label: '通知人员',
-      component: 'Input',
-      componentProps: {
-        maxLength: 255,
-        placeholder: '请输入通知人员',
-      },
-    },
-    {
-      fieldName: 'description',
-      label: '规则描述',
-      component: 'Textarea',
-      componentProps: {
-        maxLength: 255,
-        placeholder: '请输入规则描述',
-        rows: 3,
-      },
-    },
-  ];
+/** 对象类型 -> 显示名 */
+export function objectTypeLabel(value?: string): string {
+  return OBJECT_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? value ?? '';
+}
+
+/** 预警等级 -> 显示名 + 颜色 */
+export function warningLevelMeta(value?: string): { label: string; color: string } {
+  switch (value) {
+    case 'RED':
+      return { label: '红色预警', color: 'red' };
+    case 'ORANGE':
+      return { label: '橙色预警', color: 'orange' };
+    case 'YELLOW':
+      return { label: '黄色预警', color: 'gold' };
+    default:
+      return { label: value ?? '', color: 'default' };
+  }
 }
 
 /** 列表的搜索表单 */
 export function useGridFormSchema(): VbenFormSchema[] {
   return [
     {
-      fieldName: 'resourceType',
-      label: '资源类型',
+      fieldName: 'objectType',
+      label: '预警对象',
       component: 'Select',
       componentProps: {
         allowClear: true,
-        options: RESOURCE_TYPE_OPTIONS,
-        placeholder: '请选择资源类型',
+        options: OBJECT_TYPE_OPTIONS,
+        placeholder: '请选择预警对象',
       },
     },
     {
-      fieldName: 'projectId',
-      label: '项目ID',
-      component: 'InputNumber',
+      fieldName: 'warningLevel',
+      label: '预警等级',
+      component: 'Select',
       componentProps: {
-        class: '!w-full',
-        min: 0,
-        placeholder: '请输入项目ID',
+        allowClear: true,
+        options: WARNING_LEVEL_OPTIONS,
+        placeholder: '请选择预警等级',
       },
     },
     {
@@ -210,10 +74,7 @@ export function useGridFormSchema(): VbenFormSchema[] {
       component: 'Select',
       componentProps: {
         allowClear: true,
-        options: [
-          { label: '启用', value: 1 },
-          { label: '禁用', value: 0 },
-        ],
+        options: STATUS_OPTIONS,
         placeholder: '请选择状态',
       },
     },
@@ -224,46 +85,42 @@ export function useGridFormSchema(): VbenFormSchema[] {
 export function useGridColumns(): VxeTableGridOptions['columns'] {
   return [
     {
-      field: 'ruleName',
+      field: 'name',
       title: '规则名称',
-      minWidth: 160,
+      minWidth: 180,
     },
     {
-      field: 'resourceType',
-      title: '资源类型',
-      minWidth: 120,
-    },
-    {
-      field: 'projectId',
-      title: '项目ID',
-      width: 120,
-      align: 'center',
-    },
-    {
-      field: 'thresholdType',
-      title: '阈值类型',
-      width: 120,
-    },
-    {
-      field: 'warningThreshold',
-      title: '预警阈值',
-      width: 120,
-      align: 'center',
+      field: 'objectType',
+      title: '预警对象',
+      width: 140,
+      formatter: ({ cellValue }) => objectTypeLabel(cellValue as string),
     },
     {
       field: 'warningLevel',
-      title: '预警级别',
+      title: '预警等级',
       width: 120,
+      slots: {
+        default: ({ row }) => {
+          const m = warningLevelMeta(row.warningLevel);
+          return `<span style="color:${m.color === 'default' ? '#999' : m.color}">${m.label}</span>`;
+        },
+      },
     },
     {
-      field: 'checkFrequency',
-      title: '检查频率',
-      width: 120,
+      field: 'priority',
+      title: '优先级',
+      width: 90,
+      align: 'center',
+    },
+    {
+      field: 'conditionExpr',
+      title: '规则条件',
+      minWidth: 260,
     },
     {
       field: 'enabled',
       title: '状态',
-      width: 100,
+      width: 90,
       align: 'center',
       formatter: ({ cellValue }) => (cellValue === 1 ? '启用' : '禁用'),
     },

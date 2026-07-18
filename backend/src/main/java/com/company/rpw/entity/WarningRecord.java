@@ -5,62 +5,49 @@ import com.company.rpw.common.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 预警记录实体类
+ * 预警记录实体
+ *
+ * <p>由 {@code WarningRuleService} 根据规则定义与计划数据生成，记录触发该预警的计划、
+ * 预警类型与具体的计算原因。</p>
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("warning_record")
 public class WarningRecord extends BaseEntity {
 
-    /** 预警规则ID */
+    /** 触发规则ID */
     private Long ruleId;
 
-    /** 资源类型 */
-    private String resourceType;
+    /** 预警对象类型 */
+    private String objectType;
 
-    /** 项目ID */
-    private Long projectId;
+    /** 计划ID（关联各资源计划表主键） */
+    private Long planId;
 
-    /** 资源计划ID（关联各资源表的主键） */
-    private Long resourceId;
+    /** 计划名称（冗余存储，便于展示与检索） */
+    private String planName;
 
-    /** 预警等级（GENERAL-一般/IMPORTANT-重要/URGENT-紧急） */
+    /** 预警类型（RED-红色/ORANGE-橙色/YELLOW-黄色） */
     private String warningLevel;
 
-    /** 预警消息内容 */
-    private String warningMessage;
+    /** 预警原因（规则定义 + 代入实际数据后的计算值） */
+    private String reason;
 
-    /** 计划值 */
-    private BigDecimal planValue;
+    /** 触发时的规则表达式快照 */
+    private String conditionExpr;
 
-    /** 实际值 */
-    private BigDecimal actualValue;
-
-    /** 偏差率（百分比） */
-    private BigDecimal deviationRate;
-
-    /** 处理状态（PENDING-待处理/PROCESSING-处理中/RESOLVED-已解决/IGNORED-已忽略） */
+    /** 处理状态（PENDING-待处理/RESOLVED-已解决/IGNORED-已忽略） */
     private String status;
 
-    /** 处理人ID */
-    private Long handledBy;
+    /** 触发时间 */
+    private LocalDateTime triggeredTime;
 
     /** 处理时间 */
     private LocalDateTime handleTime;
 
     /** 处理备注 */
     private String handleRemark;
-
-    /** 通知状态（NOT_SENT-未发送/SENT-已发送/FAILED-发送失败） */
-    private String notifyStatus;
-
-    /** 企业微信消息ID */
-    private String wecomMsgId;
-
-    /** 触发时间 */
-    private LocalDateTime triggeredTime;
 }

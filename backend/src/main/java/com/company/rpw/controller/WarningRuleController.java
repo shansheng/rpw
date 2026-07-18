@@ -5,16 +5,17 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.company.rpw.common.R;
 import com.company.rpw.entity.WarningRule;
+import com.company.rpw.service.WarningAttributeRegistry;
+import com.company.rpw.service.WarningExpressionEngine;
 import com.company.rpw.service.WarningRuleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * 预警规则管理控制器
+ * 预警规则管理控制器（表达式驱动）
  */
 @RestController
 @RequestMapping("/api/v1/warning/rule")
@@ -22,73 +23,41 @@ import java.util.List;
 public class WarningRuleController {
 
     private final WarningRuleService warningRuleService;
+    private final WarningAttributeRegistry attributeRegistry;
+    private final WarningExpressionEngine expressionEngine;
 
-    /**
-     * 查询预警规则列表（支持分页和筛选）
-     * GET /api/v1/warning/rule/list
-     * @param resourceType 资源类型（可选）
-     * @param projectId 项目ID（可选）
-     * @param enabled 是否启用（可选）
-     * @param pageNum 页码（默认1）
-     * @param pageSize 每页数量（默认10）
-     * @return 预警规则列表
-     */
+    /** 分页列表 */
     @GetMapping("/list")
     public R<IPage<WarningRule>> list(
-            @RequestParam(required = false) String resourceType,
-            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) String objectType,
             @RequestParam(required = false) Integer enabled,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
-        
         LambdaQueryWrapper<WarningRule> wrapper = new LambdaQueryWrapper<>();
-        if (resourceType != null && !resourceType.isEmpty()) {
-            wrapper.eq(WarningRule::getResourceType, resourceType);
-        }
-        if (projectId != null) {
-            wrapper.eq(WarningRule::getProjectId, projectId);
+        if (objectType != null && !objectType.isEmpty()) {
+            wrapper.eq(WarningRule::getObjectType, objectType);
         }
         if (enabled != null) {
             wrapper.eq(WarningRule::getEnabled, enabled);
         }
-        wrapper.orderByDesc(WarningRule::getCreateTime);
-        
+        wrapper.orderByAsc(WarningRule::getPriority).orderByDesc(WarningRule::getCreateTime);
         IPage<WarningRule> page = new Page<>(pageNum, pageSize);
-        IPage<WarningRule> result = warningRuleService.page(page, wrapper);
-        return R.ok(result);
+        return R.ok(warningRuleService.page(page, wrapper));
     }
 
-    /**
-     * 根据ID查询预警规则
-     * GET /api/v1/warning/rule/{id}
-     * @param id 预警规则ID
-     * @return 预警规则详情
-     */
     @GetMapping("/{id}")
     public R<WarningRule> getById(@PathVariable Long id) {
-        WarningRule entity = warningRuleService.getById(id);
-        return R.ok(entity);
+        return R.ok(warningRuleService.getById(id));
     }
 
-    /**
-     * 新增预警规则
-     * POST /api/v1/warning/rule
-     * @param entity 预警规则信息
-     * @return 是否成功
-     */
     @PostMapping
     public R<Boolean> create(@RequestBody WarningRule entity) {
+        if (entity.getEnabled() == null) entity.setEnabled(1);
+        if (entity.getPriority() == null) entity.setPriority(100);
         boolean result = warningRuleService.save(entity);
         return result ? R.ok(true) : R.fail(500, "新增失败");
     }
 
-    /**
-     * 修改预警规则
-     * PUT /api/v1/warning/rule/{id}
-     * @param id 预警规则ID
-     * @param entity 预警规则信息
-     * @return 是否成功
-     */
     @PutMapping("/{id}")
     public R<Boolean> update(@PathVariable Long id, @RequestBody WarningRule entity) {
         entity.setId(id);
@@ -96,25 +65,12 @@ public class WarningRuleController {
         return result ? R.ok(true) : R.fail(500, "修改失败");
     }
 
-    /**
-     * 删除预警规则
-     * DELETE /api/v1/warning/rule/{id}
-     * @param id 预警规则ID
-     * @return 是否成功
-     */
     @DeleteMapping("/{id}")
     public R<Boolean> delete(@PathVariable Long id) {
         boolean result = warningRuleService.removeById(id);
         return result ? R.ok(true) : R.fail(500, "删除失败");
     }
 
-    /**
-     * 启用/禁用预警规则
-     * PUT /api/v1/warning/rule/{id}/toggle
-     * @param id 预警规则ID
-     * @param enabled 是否启用（0-禁用，1-启用）
-     * @return 是否成功
-     */
     @PutMapping("/{id}/toggle")
     public R<Boolean> toggle(@PathVariable Long id, @RequestParam Integer enabled) {
         WarningRule entity = new WarningRule();
@@ -125,17 +81,62 @@ public class WarningRuleController {
     }
 
     /**
-     * 手动触发预警检查
-     * POST /api/v1/warning/rule/check
-     * @param projectId 项目ID（可选）
-     * @param ruleId 规则ID（可选）
-     * @return 检查结果
+     * 属性元数据：供规则编辑器展示可选对象、属性与系统属性。
      */
+    @GetMapping("/attributes")
+    public R<Map<String, Object>> attributes(@RequestParam(required = false) String objectType) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        List<Map<String, String>> objectTypes = WarningAttributeRegistry.OBJECT_TYPE_LABELS.entrySet().stream()
+                .map(e -> {
+                    Map<String, String> m = new LinkedHashMap<>();
+                    m.put("value", e.getKey());
+                    m.put("label", e.getValue());
+                    return m;
+                }).collect(Collectors.toList());
+        data.put("objectTypes", objectTypes);
+
+        List<Map<String, String>> system = WarningAttributeRegistry.SYSTEM_ATTRIBUTES.stream()
+                .map(a -> {
+                    Map<String, String> m = new LinkedHashMap<>();
+                    m.put("label", a.label);
+                    m.put("type", a.type.name());
+                    return m;
+                }).collect(Collectors.toList());
+        data.put("systemAttributes", system);
+
+        List<Map<String, String>> attrs = new ArrayList<>();
+        if (objectType != null && attributeRegistry.isSupported(objectType)) {
+            attrs = attributeRegistry.getAttributes(objectType).stream()
+                    .map(a -> {
+                        Map<String, String> m = new LinkedHashMap<>();
+                        m.put("label", a.label);
+                        m.put("field", a.field);
+                        m.put("type", a.type.name());
+                        return m;
+                    }).collect(Collectors.toList());
+        }
+        data.put("attributes", attrs);
+        return R.ok(data);
+    }
+
+    /** 校验表达式语法 */
+    @PostMapping("/validate")
+    public R<Map<String, Object>> validate(@RequestBody Map<String, String> body) {
+        String objectType = body.get("objectType");
+        String conditionExpr = body.get("conditionExpr");
+        String err = expressionEngine.validate(conditionExpr, objectType, attributeRegistry);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("valid", err == null);
+        result.put("message", err);
+        return R.ok(result);
+    }
+
+    /** 手动立即检查 */
     @PostMapping("/check")
     public R<String> check(
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) Long ruleId) {
-        String result = warningRuleService.checkWarning(projectId, ruleId);
-        return R.ok(result);
+        int count = warningRuleService.checkAll(projectId, ruleId);
+        return R.ok(String.format("预警检查完成，共产生 %d 条预警", count));
     }
 }
